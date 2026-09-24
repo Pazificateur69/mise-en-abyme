@@ -1,0 +1,1438 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mise en abyme</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,400;1,500;1,600&family=Rock+Salt&display=swap" rel="stylesheet">
+<style>
+:root {
+  --wall-deep: #1f0608;
+  --gold: #c49a52;
+  --gold-dark: #6a4a1c;
+  --gold-light: #f3dca0;
+  --bone: #e8dcc4;
+  --ink: #2a1c13;
+  --serif: "Cormorant Garamond", "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --scrawl: "Rock Salt", "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --wall-deep: #1a0507; } }
+:root[data-theme="dark"] { --wall-deep: #1a0507; }
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-padding-top: env(safe-area-inset-top, 0px); height: 100%; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--wall-deep); }
+body { color: var(--bone); font-family: var(--serif); -webkit-font-smoothing: antialiased; }
+
+#cv { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; cursor: ns-resize; }
+.post { position: fixed; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+
+.grain {
+  position: fixed; inset: -12%; pointer-events: none; z-index: 5; opacity: .1; will-change: transform;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 .9  0 0 0 0 .8  0 0 0 1.4 -.35'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  animation: grain .6s steps(6) infinite;
+}
+@keyframes grain {
+  0% { transform: translate(0, 0); } 17% { transform: translate(-5%, 3%); } 33% { transform: translate(4%, -5%); }
+  50% { transform: translate(-3%, 6%); } 67% { transform: translate(6%, 2%); } 83% { transform: translate(-5%, -4%); } 100% { transform: translate(0, 0); }
+}
+
+.hud {
+  position: fixed; z-index: 20; left: 0; right: 0; bottom: 0;
+  display: flex; justify-content: space-between; align-items: flex-end; gap: 1rem;
+  padding: 1.1rem 1.4rem calc(1.1rem + env(safe-area-inset-bottom, 0px));
+  pointer-events: none;
+}
+.depth { font-style: italic; font-size: clamp(1rem, 2.2vw, 1.3rem); color: var(--bone); opacity: .85; margin: 0; max-width: 22rem; text-shadow: 0 0 10px #000; }
+.depth b { font-style: normal; font-weight: 600; color: var(--gold-light); font-variant-numeric: lining-nums tabular-nums; }
+.actions { display: flex; gap: .6rem; align-items: flex-end; flex-wrap: wrap; justify-content: flex-end; }
+.btn {
+  pointer-events: auto; font: italic 500 clamp(.95rem, 2vw, 1.1rem) var(--serif);
+  color: var(--ink); background: linear-gradient(180deg, var(--gold-light), var(--gold));
+  border: 0; padding: .55em 1.1em .6em; cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0,0,0,.5), inset 0 0 0 1px var(--gold-dark);
+}
+.btn.ghost { background: rgba(20, 4, 6, .55); color: var(--bone); box-shadow: inset 0 0 0 1px rgba(232, 220, 196, .35); }
+.btn:hover { filter: brightness(1.12); }
+.btn:focus-visible { outline: 2px solid var(--bone); outline-offset: 3px; }
+#up { opacity: 0; transform: translateY(8px); transition: opacity .5s, transform .5s; pointer-events: none; }
+#up.show { opacity: 1; transform: none; pointer-events: auto; }
+
+.whisper {
+  position: fixed; z-index: 21; margin: 0; pointer-events: none; max-width: 70vw;
+  font-family: var(--scrawl); font-size: clamp(.95rem, 2.3vw, 1.35rem); color: var(--bone);
+  opacity: 0; transition: opacity 1.2s ease; text-shadow: 0 0 14px #000, 0 0 3px #000;
+}
+.whisper.on { opacity: .9; }
+.whisper.red { color: #d9414a; }
+
+.blue { color: #6f97ff; }
+.depth s { text-decoration-thickness: 1px; opacity: .7; }
+.room { display: block; font-size: .78em; opacity: .7; letter-spacing: .02em; }
+
+@media (prefers-reduced-motion: reduce) {
+  .grain { animation: none; }
+  .whisper, #up { transition: none; }
+}
+</style>
+</head>
+<body>
+<canvas id="cv" role="img" aria-label="Une spirale infinie de tableaux imbriqués dans une salle de musée. Fais défiler pour descendre."></canvas>
+<div class="grain"></div>
+<div class="hud">
+  <p class="depth" id="depth">à la surface. Fais défiler pour entrer dans le tableau.</p>
+  <div class="actions">
+    <button class="btn ghost" id="sound" type="button">Activer le son</button>
+    <button class="btn" id="up" type="button">Remonter à la surface</button>
+  </div>
+</div>
+<p class="whisper" id="whisper" aria-live="polite"></p>
+
+<script>
+(() => {
+
+  "use strict";
+  // ================= réglages =================
+  const K = 0.38, THETA = -24 * Math.PI / 180, CY = 0.44, TAU = Math.PI * 2, N = 96;
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const chaos = idx => Math.max(0, Math.min(1, (idx - 4) / 26));
+  const SCR = '"Rock Salt", "Segoe Print", "Bradley Hand", "Comic Sans MS", cursive';
+  const SER = '"Cormorant Garamond", Georgia, "Times New Roman", serif';
+  const BLUE = "#4a7cf0", BLOOD = "179,38,43";
+
+  // ================= palettes de salles =================
+  const PAL = {
+    musee:  { top: "#4a1219", lit: "rgba(120,34,44,.95)", dado: "#33090f", floor: "#2a080c", deep: "#1f0608", text: "232,220,196", ring: "243,220,160", light: "rgba(255,220,160,.15)" },
+    blanc:  { top: "#e3ded2", lit: "rgba(255,252,244,.9)", dado: "#c9c2b4", floor: "#b9b2a4", deep: "#9d968a", text: "46,38,32", ring: "70,60,50", light: "rgba(255,255,255,.4)" },
+    vert:   { top: "#1c3a2e", lit: "rgba(52,98,74,.9)", dado: "#132b21", floor: "#0f231b", deep: "#0a1712", text: "226,222,200", ring: "214,196,140", light: "rgba(220,255,200,.1)" },
+    nuit:   { top: "#141d33", lit: "rgba(42,64,106,.9)", dado: "#0f1729", floor: "#0b1222", deep: "#070b15", text: "210,220,236", ring: "190,205,230", light: "rgba(170,200,255,.12)" },
+    cendre: { top: "#34312f", lit: "rgba(82,78,74,.9)", dado: "#282624", floor: "#1e1c1b", deep: "#141312", text: "222,216,206", ring: "200,190,170", light: "rgba(255,240,220,.08)" },
+    noir:   { top: "#0c0a0a", lit: "rgba(34,28,26,.9)", dado: "#0e0c0c", floor: "#070606", deep: "#030202", text: "200,190,176", ring: "190,180,160", light: "rgba(255,230,190,.04)" },
+    jaune:  { top: "#8a7e4c", lit: "rgba(196,182,114,.9)", dado: "#6b6139", floor: "#4a4228", deep: "#322c1a", text: "48,38,20", ring: "70,55,25", light: "rgba(255,250,200,.22)" },
+    plan:   { top: "#1b3552", lit: "rgba(42,84,126,.9)", dado: "#16304b", floor: "#12263c", deep: "#0b1828", text: "225,236,248", ring: "225,236,248", light: "rgba(200,230,255,.1)" },
+    sepia:  { top: "#4d3620", lit: "rgba(112,82,50,.9)", dado: "#3a2917", floor: "#2b1d10", deep: "#1c130a", text: "236,222,196", ring: "230,200,150", light: "rgba(255,220,160,.12)" }
+  };
+
+  // ================= types de salles =================
+  const ROOMS = {
+    musee:     { pal: ["musee"], frame: ["gold"], shape: ["rect"], decor: ["ring"], who: ["viewer"], cartel: "paper", scrawls: true },
+    blanche:   { pal: ["blanc"], frame: ["mat"], shape: ["rect", "rect", "circle"], decor: ["bench"], who: ["viewer", "two", "none"], cartel: "white", scrawls: "pencil" },
+    couloir:   { pal: ["cendre", "nuit"], frame: ["iron", "none"], shape: ["arch", "rect"], decor: ["corridor"], who: ["tall", "none"], cartel: null, scrawls: true },
+    complot:   { pal: ["vert", "sepia"], frame: ["wood"], shape: ["rect", "oval"], decor: ["board"], who: ["chair"], cartel: "paper", scrawls: false },
+    papier:    { pal: ["jaune"], frame: ["gold", "wood"], shape: ["oval", "octagon"], decor: ["wallpaper"], who: ["chair", "none"], cartel: "paper", scrawls: false },
+    ecriture:  { pal: ["blanc", "cendre"], frame: ["none"], shape: ["torn"], decor: ["writing"], who: ["none", "tall"], cartel: null, scrawls: false },
+    noire:     { pal: ["cendre", "musee"], frame: ["silver"], shape: ["rect", "circle", "oval"], decor: ["spot", "ring", "watcher"], who: ["viewer"], cartel: "paper", scrawls: false },
+    inondee:   { pal: ["nuit"], frame: ["silver", "gold"], shape: ["gothic", "arch"], decor: ["water"], who: ["none", "half"], cartel: null, scrawls: true },
+    portraits: { pal: ["vert", "musee"], frame: ["gold"], shape: ["octagon", "oval", "rect"], decor: ["portraits"], who: ["two"], cartel: "paper", scrawls: false },
+    plan:      { pal: ["plan"], frame: ["line"], shape: ["rect", "diamond"], decor: ["blueprint"], who: ["none"], cartel: null, scrawls: false },
+    horloges:  { pal: ["sepia", "cendre"], frame: ["iron", "wood"], shape: ["keyhole", "circle"], decor: ["clocks"], who: ["viewer", "none"], cartel: "paper", scrawls: true }
+  };
+  const ROOM_NAMES = { musee: "la salle rouge", blanche: "la galerie blanche", couloir: "le couloir", complot: "la salle des preuves",
+    papier: "la chambre jaune", ecriture: "la salle d'écriture", noire: "la salle noire", inondee: "la salle inondée",
+    portraits: "la galerie des portraits", plan: "le plan", horloges: "la salle des horloges" };
+  const TYPES = Object.keys(ROOMS);
+
+  // ================= textes =================
+  const titlesBy = {
+    musee: ["Autoportrait du regardeur", "Le même, un tour plus loin", "Celui qui regarde celui qui regarde", "Tu étais déjà là", "Portrait de toi, de dos"],
+    blanche: ["Sans titre n° 40", "Blanc sur blanc sur toi", "Composition avec absence", "Vide (prêt d'un collectionneur inconnu)"],
+    complot: ["Pièce à conviction n° 12", "Tout est lié", "Preuve que la pièce est plus grande", "Relevé des coïncidences"],
+    papier: ["La chambre qui regarde", "Papier peint, huile et paupières", "Intérieur avec motif vivant", "Le motif a bougé"],
+    noire: ["Portrait dans le noir", "Ce que l'on voit quand on éteint", "Étude pour une lampe qui s'éteint"],
+    portraits: ["La famille (incomplète)", "Galerie des ancêtres, dont un inconnu", "Portraits qui ne sont pas vides", "Réunion de famille, 3 h du matin"],
+    horloges: ["L'heure d'ici", "Il est trop tard, huile sur cadran", "Salle où le temps descend aussi"]
+  };
+  const titles = ["Étude pour une fenêtre sans dehors", "Le cadre a toujours su", "Sans titre (ils ont retiré le titre)", "Intérieur avec témoin",
+    "La pièce d'à côté est cette pièce", "Souvenir d'une sortie", "Toi, avant que tu arrives", "Copie conforme d'une inquiétude",
+    "Le musée ferme dans cinq minutes", "Nature morte avec spectateur vivant", "Spirale, ou la même chose en plus petit"];
+  const deepTitles = ["Plan de la maison (incomplet)", "[titre effacé]", "Couloir, huile sur rien", "La maison, vue de l'intérieur de l'intérieur",
+    "Escalier qui ne finit pas", "Pièce qui n'était pas là hier", "Sans titre, sans salle, sans toi", "Relevé de mesures n° 7", "Le mur du fond (introuvable)"];
+  const media = ["Huile sur doute", "Huile sur insomnie", "Pigments et soupçons sur toile", "Vernis, poussière et regards", "Technique mixte, surtout la peur",
+    "Huile sur miroir sans tain", "Encre sur paupière", "Huile sur silence prolongé", "Tempera sur mémoire", "Huile sur toi"];
+  const sizes = ["dimensions variables", "plus grand de l'intérieur", "taille réelle, en principe", "rétrécit quand on le regarde", "∞ × ∞ cm", "à peu près ta taille"];
+  const deepSizes = ["plus grande dedans que dehors, mesuré trois fois", "dimensions en cours de changement",
+    "la mesure diffère selon qui tient le mètre", "quelques centimètres de plus qu'hier"];
+  const lefts = ["ne te retourne pas", "il y a quelqu'un derrière le cadre", "ils comptent tes pas", "je ne suis pas celui qui regarde",
+    "tout ceci est déjà arrivé", "le tableau respire quand tu clignes", "qui a accroché ce cadre", "tu descends ou tu tombes", "la sortie est peinte",
+    "ne lis pas ceci", "j'ai vu mes yeux de l'intérieur", "chaque pièce est plus petite que la précédente",
+    "ils ont changé les murs pendant que tu dormais", "quelqu'un écrit ces phrases avant toi"];
+  const maisonLefts = ["la maison est plus grande à l'intérieur", "j'ai mesuré la maison deux fois", "la maison n'a pas de fond",
+    "quelqu'un a ajouté un couloir à la maison", "cette maison ne me connaît pas", "ne dors pas dans la maison",
+    "la maison entend quand tu lis", "il n'y a pas d'autre maison"];
+  const rights = [["c'est toi, en bas", "oui, toi"], ["le gardien n'a pas de visage"], ["compte les cadres", "recompte", "ils ont changé"],
+    ["tu as déjà lu cette ligne"], ["personne n'est jamais ressorti", "(sauf toi ?)"], ["le vernis cache une autre version"],
+    ["arrête de cligner", "ils bougent quand tu clignes"], ["la peinture est encore fraîche", "donc quelqu'un vient de partir"],
+    ["je t'attendais", "depuis la salle d'avant"], ["le cadre est de travers", "ou c'est toi"], ["ne réponds pas si on t'appelle"],
+    ["tout est normal", "tout est normal", "tout est normal"], ["ça tourne", "non c'est toi qui tournes"], ["il y a un œil au fond", "ne descends pas jusqu'à lui"]];
+  const deepRights = [["la maison a gagné un mur", "pendant que tu lisais ça"], ["j'ai perdu la page", "ou la pièce"],
+    ["ce n'est pas un écho", "c'est quelqu'un qui répond"], ["il faisait plus froid", "à la salle d'avant", "non. plus chaud."],
+    ["n'écoute pas le grognement", "c'est juste la maison"], ["relis la note 3", "il n'y a pas de note 3"],
+    ["on a trouvé mon écriture", "sur un mur où je ne suis pas allé"]];
+  const rings = ["tout ce que tu regardes te regarde aussi", "tu es dans le tableau depuis le début", "la spirale ne mène nulle part, elle mène ici",
+    "chaque tour te ressemble un peu moins", "descends encore, ils sont juste en dessous", "le centre recule quand tu avances",
+    "il n'y a pas de fond, seulement d'autres murs", "tu as déjà fait ce tour", "ferme les yeux et la pièce continue", "celui d'en dessous a ton visage"];
+  const deepRings = ["la maison se replie sur elle-même comme une page", "chaque couloir de la maison mène à ce couloir",
+    "la maison mesure plus que la maison", "il n'y a pas de dernière pièce dans la maison"];
+  const writings = ["je ne suis pas en train de descendre", "je suis encore dans la salle d'avant", "compter les murs compter les murs",
+    "la maison n'a pas de fond la maison n'a pas de fond", "si tu lis ceci tu es déjà trop bas", "il ne faut pas regarder le cadre en face"];
+  const tops = ["encore un", "plus bas", "tu vois ?", "on continue", "c'est ici", "non, plus loin", "ils regardent", "reste calme",
+    "ce mur est tiède", "qui éclaire ?", "chut", "presque"];
+  const footnotesPool = ["Voir la salle {a}, que personne n'a vue.", "Cette note n'existe pas dans l'édition précédente.", "Idem.", "Cf. note {n}.",
+    "Le traducteur refuse de continuer à partir d'ici.", "Mesure refaite le lendemain : la maison avait gagné quelques centimètres.",
+    "Illisible. Quelqu'un a gratté le mur.", "Il manque une page. Ou une pièce.", "Ce passage a été écrit à l'envers, puis corrigé, puis remis à l'envers.",
+    "Aucune source ne confirme l'existence de ce couloir.", "Le gardien affirme que la salle n'a pas d'étage inférieur.",
+    "Nous laissons cette note vide par respect.", "Il n'y avait personne derrière toi. En principe.", "Voir aussi la note {b}, qui renvoie ici.",
+    "L'auteur de cette note est introuvable depuis la salle {a}."];
+  const scatterPool = ["la maison continue même quand tu t'arrêtes", "un couloir de plus à chaque fois que tu clignes",
+    "je ne sais plus si je descends ou si la maison monte", "les murs de la maison sont plus loin qu'avant",
+    "ne cherche pas la sortie elle est dans une autre maison"];
+  const fallPool = ["tomber", "descendre", "plus bas", "fond", "encore", "maison"];
+  const lonely = ["ici", "encore", "pourquoi", "maison", "attends", "rien", "tu"];
+  const clockLabels = ["ici", "plus bas", "jamais", "avant toi", "maintenant ?", "trop tard"];
+  const boardWords = ["pourquoi 3 ?", "même visage", "salle 9 = salle 9 ?", "IL SAIT", "mesurer encore", "qui a peint ça", "encore lui", "pas de sortie"];
+  const subliminal = ["je te vois", "retourne-toi", "il est là", "tu n'es pas seul", "derrière toi", "ne lis pas ça"];
+  const cascades = [["ne bouge plus.", "il est derrière toi."], ["tu as entendu ?", "trop tard. il t'a vu."],
+    ["ils se retournent un par un.", "le dernier, c'est toi."], ["chut.", "retourne-toi. doucement."], ["tu t'es arrêté.", "eux non."]];
+  const deepCascades = [["¹ tu t'es arrêté.", "² eux ne se sont jamais arrêtés."], ["la maison a grandi pendant que tu lisais.", "d'une pièce. celle où tu es."],
+    ["tu entends ce grognement ?", "c'est la maison qui s'étire."], ["personne n'a mesuré cette salle.", "sauf lui."]];
+
+  const pick = (a, i, mul = 1, off = 0) => a[((i * mul + off) % a.length + a.length) % a.length];
+  const rng = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  const choose = (a, r) => a[Math.floor(r() * a.length) % a.length];
+  const escHTML = s => s.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
+  const richHTML = s => escHTML(s).replace(/maison/gi, x => `<span class="blue">${x}</span>`);
+  const SUP = "⁰¹²³⁴⁵⁶⁷⁸⁹";
+  const sup = n => String(n).split("").map(d => SUP[+d]).join("");
+  const smooth = x => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
+
+  // type de salle : on tire les 11 types comme un paquet de cartes mélangé, puis on remélange
+  // (tous les types reviennent régulièrement, jamais deux fois le même d'affilée)
+  const deckCache = new Map();
+  function deck(k) { // itératif : les paquets 0..k sont construits dans l'ordre, aucune limite de profondeur
+    for (let n = deckCache.size; n <= k; n++) {
+      const r = rng(n * 7777 + 99), d = TYPES.slice();
+      for (let i = d.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [d[i], d[j]] = [d[j], d[i]]; }
+      const prevLast = n === 0 ? "musee" : deckCache.get(n - 1)[d.length - 1];
+      if (d[0] === prevLast) [d[0], d[1]] = [d[1], d[0]];
+      deckCache.set(n, d);
+    }
+    return deckCache.get(k);
+  }
+  function roomType(idx) {
+    if (idx === 0) return "musee";
+    const n = TYPES.length;
+    return deck(Math.floor((idx - 1) / n))[(idx - 1) % n];
+  }
+  // ================= formes des ouvertures =================
+  // chaque forme = N points échantillonnés sur des rayons partant du centre (même paramétrage pour toutes),
+  // ce qui permet de la transformer en rectangle quand on entre dedans
+  const rectR = (c, s) => 1 / Math.max(Math.abs(c), Math.abs(s));
+  function rayPoly(poly, c, s) {
+    let best = 0;
+    for (let k = 0; k < poly.length; k++) {
+      const [x1, y1] = poly[k], [x2, y2] = poly[(k + 1) % poly.length];
+      const ex = x2 - x1, ey = y2 - y1, den = c * ey - s * ex;
+      if (Math.abs(den) < 1e-9) continue;
+      const t = (x1 * ey - y1 * ex) / den, u = (x1 * s - y1 * c) / den;
+      if (t > 0 && u >= 0 && u <= 1 && t > best) best = t;
+    }
+    return best || 1;
+  }
+  const arcPts = (cx, cy, rx, ry, a0, a1, n) => Array.from({ length: n + 1 }, (_, k) => {
+    const a = a0 + (a1 - a0) * k / n; return [cx + rx * Math.cos(a), cy + ry * Math.sin(a)];
+  });
+  const shapeCache = new Map();
+  function shapePts(name, seed, aspect) {
+    const key = name + ":" + (name === "torn" ? seed : "") + ":" + (name === "circle" ? aspect.toFixed(3) : "");
+    if (shapeCache.has(key)) return shapeCache.get(key);
+    let poly = null;
+    if (name === "gothic") {
+      const ap = Math.acos(.35 / 1.35);
+      poly = [[1, 1], ...arcPts(-.35, -.15, 1.35, .88, 0, -ap, 16), ...arcPts(.35, -.15, 1.35, .88, -Math.PI + ap, -Math.PI, 16).slice(1), [-1, 1]];
+    }
+    if (name === "keyhole") {
+      const a0 = Math.atan2(.52, .3);
+      poly = [[.62, 1], ...arcPts(0, -.32, .6, .62, a0, Math.PI - a0 - TAU, 36), [-.62, 1]];
+    }
+    const r = rng(seed * 7 + 1), jag = Array.from({ length: N }, () => r());
+    const pts = [];
+    for (let k = 0; k < N; k++) {
+      const a = k / N * TAU, c = Math.cos(a), s = Math.sin(a);
+      let d;
+      switch (name) {
+        case "oval": d = 1; break;
+        case "circle": { const rx = Math.min(1, 1 / aspect), ry = Math.min(1, aspect); d = 1 / Math.hypot(c / rx, s / ry); break; }
+        case "diamond": d = 1 / (Math.abs(c) + Math.abs(s)); break;
+        case "octagon": d = Math.min(rectR(c, s), 1.42 / (Math.abs(c) + Math.abs(s))); break;
+        case "arch": {
+          d = rectR(c, s);
+          if (d * s < -.2) { // haut arrondi : ellipse centrée (0,-.2), rx 1, ry .8
+            const A = c * c + (s / .8) ** 2, B = 2 * s * .2 / .64, C2 = .04 / .64 - 1;
+            d = (-B + Math.sqrt(B * B - 4 * A * C2)) / (2 * A);
+          }
+          break;
+        }
+        case "torn": d = rectR(c, s) * (.8 + .1 * Math.sin(a * 3 + seed) + .09 * jag[k]); break;
+        case "gothic": case "keyhole": d = rayPoly(poly, c, s); break;
+        default: d = rectR(c, s);
+      }
+      pts.push([c * d, s * d]);
+    }
+    shapeCache.set(key, pts);
+    return pts;
+  }
+
+  // ================= canvas & géométrie =================
+  const cv = document.getElementById("cv");
+  let ctx = cv.getContext("2d", { alpha: false }); // let : layer() le redirige le temps de remplir un calque
+  let W, H, DPR, m, b, S, RECT, SPR = {}, F = {};
+  const cache = new Map(), gcache = new Map(), subCache = new Map(), wallCache = new Map(), shadowCache = new Map();
+  const viewerPath = new Path2D("M100 18c-24 0-40 19-40 44 0 17 6 31 16 40l-2 16c-30 6-58 22-62 60l-4 52h184l-4-52c-4-38-32-54-62-60l-2-16c10-9 16-23 16-40 0-25-16-44-40-44z");
+  const chairPath = new Path2D("M40 0h120v14H40zM48 14h10v96H48zM142 14h10v96h-10zM58 40h84v8H58zM58 70h84v8H58zM30 110h140v14H30zM36 124h10v96H36zM154 124h10v96h-10z");
+  const tallPath = new Path2D("M50 0c-9 0-15 8-15 19 0 9 4 16 9 19l-3 8c-12 4-17 14-18 30l-6 120 8 1 4-80 3 150 10 1 6-120 4 120 10-1 2-150 4 80 8-1-6-120c-1-16-6-26-18-30l-3-8c5-3 9-10 9-19C65 8 59 0 50 0z");
+
+  function geo(idx) {
+    let g = gcache.get(idx);
+    if (g) return g;
+    const c = chaos(idx), r = rng(idx * 7919 + 13);
+    const base = idx === 0 ? 0 : 1;
+    const th = THETA + (r() - .5) * 2 * (base * 9 + c * 58) * Math.PI / 180;
+    const k = Math.max(.3, Math.min(.5, K + (r() - .5) * (base * .06 + c * .17)));
+    const Cc = { x: W / 2 + (r() - .5) * (base * .05 + c * .2) * W, y: H * (CY + (r() - .5) * (base * .03 + c * .12)) };
+    const ar = k * Math.cos(th), ai = k * Math.sin(th);
+    const nx = Cc.x - (ar * S.x - ai * S.y), ny = Cc.y - (ar * S.y + ai * S.x);
+    const dx = 1 - ar, dy = -ai, d2 = dx * dx + dy * dy;
+    g = { c, th, k, C: Cc, w: k * W, h: k * H, R: .45 * Math.hypot(k * W, k * H),
+      P: { x: (nx * dx + ny * dy) / d2, y: (ny * dx - nx * dy) / d2 } };
+    gcache.set(idx, g);
+    if (gcache.size > 80) gcache.delete(gcache.keys().next().value);
+    return g;
+  }
+
+  function wallSprite(name) {
+    if (wallCache.has(name)) return wallCache.get(name);
+    const p = PAL[name], sc = .5, c = document.createElement("canvas");
+    c.width = Math.ceil(W * sc); c.height = Math.ceil(H * sc);
+    const x = c.getContext("2d"); x.scale(sc, sc);
+    const g = x.createLinearGradient(0, 0, 0, H);
+    [[0, p.top], [.81, p.top], [.81, p.dado], [.816, p.dado], [.816, p.floor], [1, p.deep]].forEach(([o, col]) => g.addColorStop(o, col));
+    x.fillStyle = g; x.fillRect(0, 0, W, H);
+    const lit = x.createRadialGradient(W / 2, H * .42, 0, W / 2, H * .42, Math.max(W, H) * .55);
+    lit.addColorStop(0, p.lit); lit.addColorStop(1, "rgba(0,0,0,0)");
+    x.globalAlpha = .9; x.fillStyle = lit; x.fillRect(0, 0, W, H * .81); x.globalAlpha = 1;
+    const top = x.createRadialGradient(W / 2, -H * .1, 0, W / 2, -H * .1, W * .55);
+    top.addColorStop(0, p.light); top.addColorStop(1, "rgba(0,0,0,0)");
+    x.fillStyle = top; x.fillRect(0, 0, W, H);
+    wallCache.set(name, c);
+    return c;
+  }
+  function shadowSprite(shape) {
+    const key = shape === "torn" ? "rect" : shape;
+    if (shadowCache.has(key)) return shadowCache.get(key);
+    const w0 = K * W + 2 * b, h0 = K * H + 2 * b, pad = b * 3, sc = .3;
+    const c = document.createElement("canvas");
+    c.width = Math.ceil((w0 + 2 * pad) * sc); c.height = Math.ceil((h0 + 2 * pad) * sc);
+    const x = c.getContext("2d"), off = c.width * 3;
+    x.shadowColor = "rgba(0,0,0,.72)"; x.shadowBlur = b * 2.2 * sc; x.shadowOffsetX = off; x.fillStyle = "#000";
+    const pts = shapePts(key, 0, W / H);
+    x.beginPath();
+    pts.forEach(([px, py], k) => {
+      const X = (w0 + 2 * pad) * sc / 2 + px * w0 / 2 * sc - off, Y = (h0 + 2 * pad) * sc / 2 + py * h0 / 2 * sc;
+      k ? x.lineTo(X, Y) : x.moveTo(X, Y);
+    });
+    x.fill();
+    const s = { c, pad };
+    shadowCache.set(key, s);
+    return s;
+  }
+  function wallpaperTile() {
+    const t = m * .075, res = 3 * DPR, c = document.createElement("canvas");
+    c.width = c.height = Math.ceil(t * res);
+    const x = c.getContext("2d"); x.scale(res, res);
+    const eye = (cx, cy, s) => {
+      x.beginPath(); x.moveTo(cx - s, cy); x.quadraticCurveTo(cx, cy - s * .75, cx + s, cy); x.quadraticCurveTo(cx, cy + s * .75, cx - s, cy);
+      x.fillStyle = "rgba(60,48,20,.28)"; x.fill();
+      x.strokeStyle = "rgba(60,48,20,.35)"; x.lineWidth = s * .08; x.stroke();
+      x.beginPath(); x.arc(cx, cy, s * .28, 0, TAU); x.fillStyle = "rgba(40,30,10,.45)"; x.fill();
+      for (let k = -2; k <= 2; k++) { x.beginPath(); x.moveTo(cx + k * s * .3, cy - s * .38); x.lineTo(cx + k * s * .38, cy - s * .62); x.stroke(); }
+    };
+    eye(t * .25, t * .25, t * .16); eye(t * .75, t * .75, t * .16);
+    x.fillStyle = "rgba(255,245,200,.1)"; x.beginPath(); x.arc(t * .75, t * .25, t * .04, 0, TAU); x.arc(t * .25, t * .75, t * .04, 0, TAU); x.fill();
+    const pat = ctx.createPattern(c, "repeat");
+    return { pat, res, t };
+  }
+
+  function resize() {
+    W = innerWidth; H = innerHeight; DPR = Math.min(devicePixelRatio || 1, 2);
+    cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+    if (post) post.size();
+    m = Math.min(W, H); b = m * 0.03; S = { x: W / 2, y: H / 2 };
+    RECT = shapePts("rect", 0, 1);
+    const vig = (inner, alpha) => {
+      const sc = .35, c = document.createElement("canvas");
+      c.width = Math.ceil(W * sc); c.height = Math.ceil(H * sc);
+      const x = c.getContext("2d"); x.scale(sc, sc);
+      const mx = Math.max(W, H), g = x.createRadialGradient(W / 2, H * .45, mx * inner, W / 2, H * .45, mx * .8);
+      g.addColorStop(0, "rgba(8,1,2,0)"); g.addColorStop(1, `rgba(8,1,2,${alpha})`);
+      x.fillStyle = g; x.fillRect(0, 0, W, H);
+      return c;
+    };
+    SPR.vig = vig(.32, .74); SPR.vigTight = vig(.12, .95);
+    SPR.paper = wallpaperTile();
+    F.left = Math.max(m * .022, 11); F.right = Math.max(m * .019, 10); F.top = Math.max(m * .02, 10);
+    F.title = m * .064; F.cart = Math.max(m * .019, 11); F.note = Math.max(m * .0165, 9.5);
+    F.hud = H - actionsEl.getBoundingClientRect().top; // hauteur occupée par les boutons (#up compte même caché)
+    [cache, gcache, subCache, wallCache, shadowCache, shapeCache, layers].forEach(x => x.clear());
+    RECT = shapePts("rect", 0, 1);
+  }
+
+  // ================= calques de texte =================
+  // Mesuré : en descente, le goulot est le texte (chaque glyphe change d'échelle à chaque image et Chrome le re-rastérise).
+  // En mouvement, le texte d'une salle est donc dessiné une fois dans un calque qu'on déplace ensuite ; au repos, retour
+  // au vectoriel pour la netteté. Calques en résolution réduite (le flou de mouvement le masque), 1 création max par image.
+  const layers = new Map();
+  let layerBudget = 0, moving = false;
+  function layer(key, draw, w = W, h = H, q = Math.min(DPR, 1.25)) {
+    let c = layers.get(key);
+    if (c) { layers.delete(key); layers.set(key, c); return c; } // LRU : on remet en tête
+    if (layerBudget <= 0) return null;
+    layerBudget--;
+    if (layers.size >= 8) { const [k, old] = layers.entries().next().value; layers.delete(k); c = old; }
+    c = c || document.createElement("canvas");
+    c.width = Math.round(w * q); c.height = Math.round(h * q); // remet aussi l'état du contexte à zéro
+    const main = ctx;
+    ctx = c.getContext("2d"); ctx.setTransform(q, 0, 0, q, 0, 0);
+    try { draw(); } finally { ctx = main; }
+    layers.set(key, c);
+    return c;
+  }
+
+  // ================= texte =================
+  function wrap(text, font, maxW) {
+    ctx.font = font;
+    const words = text.split(" "), lines = [];
+    let line = "";
+    for (const wd of words) {
+      const t = line ? line + " " + wd : wd;
+      if (ctx.measureText(t).width > maxW && line) { lines.push(line); line = wd; } else line = t;
+    }
+    if (line) lines.push(line);
+    return lines;
+  }
+  function fitRepeat(phrase, font, maxW, sep = " / ") {
+    ctx.font = font;
+    let s = "";
+    while (ctx.measureText(s + phrase + sep).width < maxW) s += phrase + sep;
+    let t = s + phrase + sep;
+    while (t.length && ctx.measureText(t).width > maxW) t = t.slice(0, -1);
+    return t;
+  }
+  function rich(text, x, y, color) {
+    const parts = text.split(/(maison)/i);
+    let cx = x;
+    for (const p of parts) {
+      if (!p) continue;
+      ctx.fillStyle = /^maison$/i.test(p) ? BLUE : color;
+      ctx.fillText(p, cx, y);
+      cx += ctx.measureText(p).width;
+    }
+    return cx - x;
+  }
+  // ================= contenu d'une salle (en cache) =================
+  const side = r => ({ x: W * (r() < .5 ? .05 + r() * .24 : .71 + r() * .24), y: H * (.08 + r() * .62) });
+  function level(idx) {
+    let L = cache.get(idx);
+    if (L) return L;
+    const g = geo(idx), c = g.c, r = rng(idx * 104729 + 7), rr = rng(idx * 2654435 + 11);
+    const type = roomType(idx), R = ROOMS[type];
+    L = { idx, g, c, type, seed: idx * 9301 + 49297,
+      pal: choose(R.pal, rr), frame: choose(R.frame, rr), shape: choose(R.shape, rr), who: choose(R.who, rr),
+      decor: R.decor, cartel: R.cartel, scrawls: R.scrawls, cartLeft: rr() < .35 };
+    L.P = PAL[L.pal];
+    L.pts = shapePts(L.shape, idx, W / H);
+    const colW = Math.min(W * .22, 288);
+    const fL = `${F.left}px ${SCR}`, fR = `${F.right}px ${SCR}`, fN = `italic 400 ${F.note}px ${SER}`;
+    const deep = () => r() < c * .85;
+    L.empty = c > .6 && idx % 3 === 0 && r() < .5 + c * .4;
+    if (L.empty) { L.who = "none"; L.cartel = null; L.scrawls = false; }
+    L.lonely = { t: pick(lonely, idx, 3), x: .12 + r() * .7, y: .1 + r() * .55 };
+    L.leftA = fitRepeat(deep() ? pick(maisonLefts, idx, 3) : pick(lefts, idx, 3), fL, H * .58);
+    L.leftB = fitRepeat(pick(lefts, idx, 7, 5), fL, H * .58);
+    L.mirror = c > .3 && r() < c;
+    const src = deep() ? pick(deepRights, idx, 3) : pick(rights, idx, 5, 1);
+    L.right = src.map((s, k) => ({ lines: wrap(s, fR, colW * .92), red: idx > 0 && idx % 4 === 3 && k === 0 }));
+    L.strike = c > .15 && r() < .5 + c * .5 ? Math.floor(r() * L.right.length) : -1;
+    L.flip = c > .3 && r() < c ? Math.floor(r() * L.right.length) : -1;
+    L.ghost = c > .65 && r() < c;
+    L.top = idx === 0 ? null : pick(tops, idx, 5, 3);
+    L.tally = Math.min(idx + Math.floor(c * c * 170), 220);
+    L.tallyRows = 3 + Math.floor(c * 10);
+    L.notes = [];
+    if (c > 0) {
+      const n = Math.min(7, 1 + Math.floor(c * 7 * (.4 + r() * .8))), base = Math.floor(idx * idx * .35) + 1;
+      for (let k = 0; k < n; k++) {
+        const num = base + k;
+        const text = footnotesPool[Math.floor(r() * footnotesPool.length)]
+          .replace("{a}", idx + 3 + Math.floor(r() * 9)).replace("{n}", num).replace("{b}", base + Math.floor(r() * n));
+        const rot = c > .5 && r() < c * .45 ? (r() < .5 ? -Math.PI / 2 : Math.PI) : (r() - .5) * c * .15;
+        L.notes.push({ lines: wrap(sup(num) + " " + text, fN, W * .36), rot, mirror: c > .6 && r() < .3 });
+      }
+      L.mark = base;
+    }
+    if (c > .4 && r() < c) {
+      const words = pick(scatterPool, idx).split(" ");
+      let x = W * (.06 + r() * .1), y = H * (.12 + r() * .1);
+      L.scatter = words.map(wd => {
+        const it = { t: wd, x, y, rot: (r() - .5) * c * 1.2, size: F.right * (.8 + r() * 1.7 * c), serif: r() < .4 };
+        x += W * (.05 + r() * .07); y += H * (.035 + r() * .06);
+        if (x > W * .88) x = W * (.06 + r() * .25);
+        return it;
+      });
+    }
+    if (c > .5 && r() < c * .8) L.fall = { t: pick(fallPool, idx, 5), x: W * (.86 + r() * .08), y: H * (.28 + r() * .15) };
+    L.dark = c * .5; L.tarnish = c * .55;
+    L.cartRot = c > .4 ? (r() - .5) * c * .7 : (rr() - .5) * .06;
+
+    // --- décor propre au type de salle ---
+    const d = rng(idx * 48271 + 3);
+    if (L.decor.includes("ring")) {
+      L.ringFont = `italic 400 ${g.R * 7.2 / 92}px ${SER}`;
+      ctx.font = L.ringFont;
+      const phrase = (deep() ? pick(deepRings, idx) : pick(rings, idx, 3, 2)) + "   ✶   ";
+      let str = "";
+      const circ = TAU * g.R;
+      while (ctx.measureText(str).width < circ * .9) str += phrase;
+      const chars = [...str], ws = chars.map(ch => ctx.measureText(ch).width);
+      const blue = new Array(chars.length).fill(false), low = str.toLowerCase();
+      for (let p = low.indexOf("maison"); p >= 0; p = low.indexOf("maison", p + 1)) for (let q = 0; q < 6; q++) blue[p + q] = true;
+      const extra = (circ - ws.reduce((a, v) => a + v, 0)) / chars.length;
+      let cum = 0;
+      L.ringRev = c > .45 && r() < .5;
+      L.ring = chars.map((ch, k) => { const a = (cum + ws[k] / 2) / g.R; cum += ws[k] + extra; return { c: ch, a, blue: blue[k] }; });
+    }
+    if (L.decor.includes("writing")) {
+      const fW = `${F.right * .95}px ${SCR}`, lh = F.right * 1.45;
+      const line = fitRepeat(pick(writings, idx, 3), fW, W * 1.25, "   ");
+      L.writing = [];
+      for (let y = H * .05; y < H * .8; y += lh) L.writing.push({ y, x: -W * (.02 + d() * .1), rot: (d() - .5) * .025, strike: d() < c * .3 });
+      L.writeLine = line; L.writeFont = fW;
+    }
+    if (L.decor.includes("board")) {
+      L.board = Array.from({ length: 9 }, () => ({ ...side(d), w: m * (.07 + d() * .05), rot: (d() - .5) * .25,
+        polaroid: d() < .35, word: choose(boardWords, d) }));
+      L.strings = L.board.map((_, k) => [k, d() < .4 ? -1 : Math.floor(d() * 9)]);
+    }
+    if (L.decor.includes("portraits")) {
+      L.portraits = Array.from({ length: 5 }, () => ({ ...side(d), w: m * (.06 + d() * .05), oval: d() < .5, eyes: d() < .6 }));
+    }
+    if (L.decor.includes("clocks")) {
+      L.clocks = Array.from({ length: 4 }, () => ({ ...side(d), r: m * (.03 + d() * .035), spin: d() < .5 ? (d() < .5 ? -1 : 1) * (.5 + d() * 3) : 0,
+        label: choose(clockLabels, d) }));
+    }
+    if (L.decor.includes("wallpaper")) {
+      const t = SPR.paper.t;
+      L.live = Array.from({ length: 6 }, () => ({ x: (Math.floor(d() * W / t) + (d() < .5 ? .25 : .75)) * t, y: 0, ph: d() * 9 }))
+        .map(e => ({ ...e, y: (Math.floor(d() * (H * .78) / t) + ((e.x / t) % 1 < .5 ? .25 : .75)) * t }));
+    }
+    if (L.decor.includes("blueprint")) {
+      L.dims = [(3.1 + d() * .3).toFixed(2).replace(".", ","), (3.1 + d() * .3).toFixed(2).replace(".", ",")];
+      L.planNote = choose(["cette pièce n'existe pas sur le plan précédent", "mesure A ≠ mesure B", "l'intérieur dépasse l'extérieur",
+        "le couloir n'était pas là", "refaire les mesures. encore."], d);
+      L.rooms = Array.from({ length: 4 }, () => ({ x: d() * W * .8, y: d() * H * .6, w: m * (.15 + d() * .25), h: m * (.1 + d() * .2) }));
+    }
+    // cartel
+    if (L.cartel) {
+      const cw = Math.max(m * .26, 122), pad = F.cart * .9, inner = cw - pad * 2;
+      const tFont = `italic 600 ${F.cart * 1.22}px ${SER}`, mFont = `500 ${F.cart}px ${SER}`, nFont = `500 ${F.cart * .85}px ${SER}`;
+      let title = idx === 0 ? "Autoportrait du regardeur"
+        : c > .3 && r() < c ? pick(deepTitles, idx) : (titlesBy[type] && rr() < .7 ? pick(titlesBy[type], idx, 3) : pick(titles, idx));
+      if (L.notes.length) title += " " + sup(L.mark);
+      const size = c > .2 && r() < c ? pick(deepSizes, idx) : pick(sizes, idx, 2);
+      const tl = wrap(title, tFont, inner), ml = wrap(pick(media, idx, 3, 1) + ", " + size, mFont, inner);
+      const nl = wrap(idx === 0 ? "Salle 0, là où tu te tiens"
+        : c > .35 ? `Salle ${idx} ou ${idx + 1}, le plan ne dit pas`
+        : `Salle ${idx}, ${idx === 1 ? "un cadre" : idx + " cadres"} sous la surface`, nFont, inner);
+      const hgt = pad * 1.8 + tl.length * F.cart * 1.22 * 1.12 + F.cart * .35 + ml.length * F.cart * 1.3 + F.cart * .5 + nl.length * F.cart * .85 * 1.3;
+      const red = [];
+      if (c > .2) for (let k = 0; k < tl.length + ml.length + nl.length; k++) if (r() < c * .7) red.push({ k, s: r() * .5, w: .2 + r() * .5 });
+      L.cart = { cw, pad, tl, ml, nl, tFont, mFont, nFont, h: hgt, red };
+    }
+    cache.set(idx, L);
+    if (cache.size > 60) cache.delete(cache.keys().next().value);
+    return L;
+  }
+  const roomName = idx => { const L = level(idx); return L.c > .6 && idx % 2 ? "une pièce sans nom" : ROOM_NAMES[L.type]; };
+  // ================= état =================
+  let target = 0, current = 0, vel = 0, v = 0, fling = 0, last = performance.now();
+  let touched = false, lastInput = performance.now(), dread = 0, visitedDeep = false;
+  try { visitedDeep = localStorage.getItem("abyme.profond") === "1"; } catch {} // la maison se souvient d'une visite à l'autre
+  let cascade = null, nextCascadeOK = 0;
+  const stareT = new Array(12).fill(0), stareA = new Array(12).fill(0);
+  let sub = null, nextSub = performance.now() + 6000;
+  let flickUntil = 0, nextFlick = performance.now() + 9000, flickA = 0;
+  let mirrorUntil = 0, nextMirror = 0;
+  let blinkAt = performance.now() + 3000, pointer = { x: innerWidth / 2, y: innerHeight * .8 };
+  let rot = 0, J = 0, hudDepth = -1, NOW = 0;
+  const T = (L, a) => `rgba(${L.P.text},${a})`;
+  const localPointer = () => ctx.getTransform().invertSelf().transformPoint(new DOMPoint(pointer.x * DPR, pointer.y * DPR));
+
+  // ================= cadres =================
+  const BANDS = {
+    gold:   [[2.05, "#6a4a1c"], [1.86, "G"], [1.36, "#f3dca0"], [1.22, "#6a4a1c"], [1.02, "G"], [.64, "#6a4a1c"], [.3, "rgba(20,8,0,.6)"]],
+    silver: [[2.05, "#44474c"], [1.86, "S"], [1.36, "#f4f6f8"], [1.22, "#55595f"], [1.02, "S"], [.64, "#34373c"], [.3, "rgba(0,0,0,.6)"]],
+    wood:   [[2.0, "#1f1008"], [1.84, "#5a3417"], [1.4, "#3c220f"], [1.0, "#6b4220"], [.6, "#241208"]],
+    iron:   [[1.5, "#111113"], [1.36, "#3b3a3c"], [.95, "#242325"], [.5, "#0e0e0f"]],
+    mat:    [[3.1, "#0d0d0d"], [2.8, "#1e1e1e"], [2.62, "#f1ece2"], [.25, "rgba(0,0,0,.25)"]],
+    line:   [[.2, "rgba(225,236,248,.9)"]],
+    none:   [[.6, "rgba(0,0,0,.7)"], [.26, "rgba(0,0,0,.9)"]]
+  };
+  const GOLD = [[0, "#f3dca0"], [.18, "#c49a52"], [.38, "#6a4a1c"], [.55, "#c49a52"], [.72, "#f3dca0"], [.86, "#c49a52"], [1, "#6a4a1c"]];
+  const SILV = [[0, "#fbfcfd"], [.2, "#aeb3b9"], [.4, "#5d6167"], [.58, "#c9cdd2"], [.75, "#ffffff"], [.9, "#9aa0a6"], [1, "#4d5157"]];
+  function framePts(L, e) {
+    const g = L.g, hw = g.w / 2, hh = g.h / 2;
+    return L.pts.map(([x, y], k) => [(x + (RECT[k][0] - x) * e) * hw, (y + (RECT[k][1] - y) * e) * hh]);
+  }
+  function trace(pts) {
+    ctx.beginPath(); ctx.moveTo(pts[0][0], pts[0][1]);
+    for (let k = 1; k < pts.length; k++) ctx.lineTo(pts[k][0], pts[k][1]);
+    ctx.closePath();
+  }
+  function strokeFrame(L, pts) {
+    const g = L.g, x0 = -g.w / 2 - b, y0 = -g.h / 2 - b;
+    ctx.lineJoin = L.shape === "rect" || L.shape === "diamond" ? "miter" : "round";
+    trace(pts);
+    // le reflet du métal glisse avec la souris (borné : un cadre minuscule reçoit un reflet normal)
+    const lp = localPointer(), ox = Math.max(-g.w / 2, Math.min(g.w / 2, lp.x * .4)), oy = Math.max(-g.h / 2, Math.min(g.h / 2, lp.y * .4));
+    for (const [wm, col] of BANDS[L.frame]) {
+      if (col === "G" || col === "S") {
+        const gr = ctx.createLinearGradient(x0 + ox, y0 + oy, -x0 + ox, -y0 + oy);
+        (col === "G" ? GOLD : SILV).forEach(([o, cc]) => gr.addColorStop(o, cc));
+        ctx.strokeStyle = gr;
+      } else ctx.strokeStyle = col;
+      ctx.lineWidth = wm * b; ctx.stroke();
+    }
+    if (L.tarnish > .01 && L.frame !== "line" && L.frame !== "none") {
+      ctx.strokeStyle = `rgba(22,22,30,${L.tarnish})`; ctx.lineWidth = 2.05 * b; ctx.stroke();
+    }
+  }
+
+  // ================= décors =================
+  function drawRing(L, detail) {
+    const g = L.g;
+    ctx.save();
+    ctx.translate(g.C.x, g.C.y); ctx.rotate(L.ringRev ? -rot * 1.7 : rot);
+    ctx.strokeStyle = `rgba(${L.P.ring},.3)`; ctx.lineWidth = g.R * .35 / 92;
+    ctx.beginPath(); ctx.arc(0, 0, g.R * 86 / 92, 0, TAU); ctx.stroke();
+    if (detail > 150) { // S : l'anneau de lettres tient dans un carré de 2,3 R (rayon + hauteur de la police)
+      const S = g.R * 2.3, rl = moving && layer("r" + L.idx, () => { ctx.translate(S / 2, S / 2); ringChars(L); }, S, S, DPR);
+      rl ? ctx.drawImage(rl, -S / 2, -S / 2, S, S) : ringChars(L);
+    }
+    ctx.restore();
+  }
+  function ringChars(L) {
+    ctx.font = L.ringFont; ctx.textAlign = "center"; ctx.textBaseline = "alphabetic";
+    let prev = 0;
+    const dir = L.ringRev ? -1 : 1;
+    ctx.save();
+    for (const q of L.ring) {
+      ctx.rotate(dir * q.a - prev); prev = dir * q.a;
+      ctx.fillStyle = q.blue ? BLUE : `rgba(${L.P.ring},.72)`;
+      ctx.fillText(q.c, 0, -L.g.R);
+    }
+    ctx.restore();
+  }
+  const quad = (cx, cy, w, h, a) => { const c = Math.cos(a), s = Math.sin(a);
+    return [[-w, -h], [w, -h], [w, h], [-w, h]].map(([x, y]) => [cx + x * c - y * s, cy + x * s + y * c]); };
+  function drawCorridor(L) {
+    const g = L.g, outer = quad(W / 2, H / 2, W / 2, H / 2, 0), inner = quad(g.C.x, g.C.y, g.w / 2 + b, g.h / 2 + b, g.th);
+    ctx.lineWidth = Math.max(1, m * .002);
+    for (let s = 1; s <= 5; s++) {
+      const f = 1 - Math.pow(.62, s);
+      const q = outer.map((p, k) => [p[0] + (inner[k][0] - p[0]) * f, p[1] + (inner[k][1] - p[1]) * f]);
+      ctx.strokeStyle = T(L, .07 + s * .035);
+      ctx.beginPath(); q.forEach((p, k) => k ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath(); ctx.stroke();
+      if (s === 2 || s === 4) { // une porte sur le côté, à chaque fois
+        const a = q[3], d = q[0], t0 = .45, t1 = .78;
+        const p1 = [a[0] + (d[0] - a[0]) * t0, a[1] + (d[1] - a[1]) * t0], p2 = [a[0] + (d[0] - a[0]) * t1, a[1] + (d[1] - a[1]) * t1];
+        const ins = (p, f2) => [p[0] + (g.C.x - p[0]) * f2, p[1] + (g.C.y - p[1]) * f2];
+        ctx.fillStyle = "rgba(0,0,0,.45)";
+        ctx.beginPath(); ctx.moveTo(...p1); ctx.lineTo(...p2); ctx.lineTo(...ins(p2, .12)); ctx.lineTo(...ins(p1, .12)); ctx.closePath(); ctx.fill();
+      }
+    }
+    ctx.strokeStyle = T(L, .12);
+    ctx.beginPath(); outer.forEach((p, k) => { ctx.moveTo(p[0], p[1]); ctx.lineTo(inner[k][0], inner[k][1]); }); ctx.stroke();
+  }
+  function drawBoard(L) {
+    const g = L.g;
+    ctx.strokeStyle = "rgba(190,30,30,.75)"; ctx.lineWidth = Math.max(1, m * .0022);
+    ctx.beginPath();
+    for (const [a, bb] of L.strings) {
+      const A = L.board[a], B = bb < 0 ? { x: g.C.x, y: g.C.y } : L.board[bb];
+      ctx.moveTo(A.x, A.y); ctx.quadraticCurveTo((A.x + B.x) / 2, (A.y + B.y) / 2 + m * .02, B.x, B.y);
+    }
+    ctx.stroke();
+    for (const n of L.board) {
+      ctx.save(); ctx.translate(n.x, n.y); ctx.rotate(n.rot);
+      const w = n.w, h = n.polaroid ? w * 1.18 : w * .8;
+      ctx.fillStyle = "rgba(0,0,0,.3)"; ctx.fillRect(-w / 2 + 2, -h * .2 + 3, w, h);
+      ctx.fillStyle = n.polaroid ? "#ece8df" : "#e7dcb8"; ctx.fillRect(-w / 2, -h * .2, w, h);
+      if (n.polaroid) {
+        ctx.fillStyle = "#1a1512"; ctx.fillRect(-w * .42, -h * .14, w * .84, w * .84);
+        ctx.fillStyle = "rgba(255,240,220,.12)"; ctx.beginPath(); ctx.arc(0, -h * .14 + w * .36, w * .16, 0, TAU); ctx.fill();
+        ctx.strokeStyle = "rgba(200,30,30,.9)"; ctx.lineWidth = w * .05;
+        ctx.beginPath(); ctx.moveTo(-w * .3, -h * .05); ctx.lineTo(w * .3, w * .6); ctx.moveTo(w * .3, -h * .05); ctx.lineTo(-w * .3, w * .6); ctx.stroke();
+      } else {
+        ctx.fillStyle = "#2a1c13"; ctx.font = `${w * .13}px ${SCR}`; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+        ctx.fillText(n.word, -w * .42, h * .25);
+        ctx.strokeStyle = "rgba(40,30,20,.35)"; ctx.lineWidth = w * .02; ctx.beginPath();
+        for (let k = 0; k < 3; k++) { ctx.moveTo(-w * .42, h * (.38 + k * .12)); ctx.lineTo(w * (.1 + (k % 2) * .25), h * (.38 + k * .12)); }
+        ctx.stroke();
+      }
+      ctx.fillStyle = "#b3262b"; ctx.beginPath(); ctx.arc(0, -h * .2 + w * .05, w * .045, 0, TAU); ctx.fill();
+      ctx.restore();
+    }
+  }
+  function blinkOpen(ph) { const t = (NOW / 1000 + ph) % 5.5; return t < .18 ? Math.abs(t - .09) / .09 : 1; }
+  function drawWallpaper(L, detail) {
+    const P = SPR.paper;
+    P.pat.setTransform(new DOMMatrix().scale(1 / P.res));
+    ctx.fillStyle = P.pat; ctx.fillRect(0, 0, W, H * .81);
+    if (detail < 140) return;
+    const p = localPointer(), s = P.t * .16;
+    for (const e of L.live) {
+      const open = blinkOpen(e.ph);
+      ctx.beginPath(); ctx.moveTo(e.x - s, e.y);
+      ctx.quadraticCurveTo(e.x, e.y - s * .75 * open, e.x + s, e.y); ctx.quadraticCurveTo(e.x, e.y + s * .75 * open, e.x - s, e.y);
+      ctx.fillStyle = "rgba(246,238,210,.95)"; ctx.fill();
+      let dx = p.x - e.x, dy = p.y - e.y; const dd = Math.hypot(dx, dy) || 1;
+      ctx.save(); ctx.clip();
+      ctx.fillStyle = "#2b1d0c"; ctx.beginPath(); ctx.arc(e.x + dx / dd * s * .4, e.y + dy / dd * s * .2, s * .32, 0, TAU); ctx.fill();
+      ctx.restore();
+    }
+  }
+  function drawWriting(L) {
+    ctx.font = L.writeFont; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    for (const ln of L.writing) {
+      ctx.save(); ctx.translate(ln.x, ln.y); ctx.rotate(ln.rot);
+      const wd = rich(L.writeLine, 0, 0, T(L, .36));
+      if (ln.strike) { ctx.fillStyle = `rgba(${BLOOD},.6)`; ctx.fillRect(0, -1, wd, Math.max(1, F.right * .1)); }
+      ctx.restore();
+    }
+  }
+  function drawPortraits(L) {
+    const p = localPointer();
+    for (const f of L.portraits) {
+      const w = f.w, h = w * 1.3;
+      ctx.save(); ctx.translate(f.x, f.y);
+      ctx.beginPath();
+      if (f.oval) ctx.ellipse(0, 0, w / 2, h / 2, 0, 0, TAU); else ctx.rect(-w / 2, -h / 2, w, h);
+      ctx.fillStyle = "#070404"; ctx.fill();
+      ctx.lineWidth = w * .12; ctx.strokeStyle = "#8a6a2e"; ctx.stroke();
+      ctx.lineWidth = w * .04; ctx.strokeStyle = "#e3c78a"; ctx.stroke();
+      if (f.eyes) {
+        const dx = Math.max(-1, Math.min(1, (p.x - f.x) / W * 4)) * w * .03;
+        const open = blinkOpen(f.x % 7);
+        ctx.fillStyle = `rgba(255,236,200,${.85 * open})`;
+        for (const ex of [-w * .1, w * .1]) { ctx.beginPath(); ctx.ellipse(ex + dx, -h * .08, w * .035, w * .02 * open + .1, 0, 0, TAU); ctx.fill(); }
+      } else {
+        ctx.fillStyle = "#1a0f0c"; ctx.beginPath(); ctx.ellipse(0, -h * .05, w * .14, w * .18, 0, 0, TAU); ctx.fill();
+        ctx.fillRect(-w * .3, h * .15, w * .6, h * .3);
+      }
+      ctx.restore();
+    }
+  }
+  function drawClocks(L) {
+    for (const k of L.clocks) {
+      ctx.save(); ctx.translate(k.x, k.y);
+      ctx.fillStyle = "rgba(236,226,200,.85)"; ctx.beginPath(); ctx.arc(0, 0, k.r, 0, TAU); ctx.fill();
+      ctx.strokeStyle = "#2a1c13"; ctx.lineWidth = k.r * .08; ctx.stroke();
+      ctx.lineWidth = k.r * .04; ctx.beginPath();
+      for (let q = 0; q < 12; q++) { const a = q / 12 * TAU; ctx.moveTo(Math.cos(a) * k.r * .78, Math.sin(a) * k.r * .78); ctx.lineTo(Math.cos(a) * k.r * .9, Math.sin(a) * k.r * .9); }
+      ctx.stroke();
+      if (k.spin) {
+        const a = NOW / 1000 * k.spin;
+        ctx.lineWidth = k.r * .06; ctx.lineCap = "round"; ctx.beginPath();
+        ctx.moveTo(0, 0); ctx.lineTo(Math.sin(a) * k.r * .7, -Math.cos(a) * k.r * .7);
+        ctx.moveTo(0, 0); ctx.lineTo(Math.sin(a / 12) * k.r * .45, -Math.cos(a / 12) * k.r * .45); ctx.stroke();
+      }
+      ctx.font = `${Math.max(k.r * .38, 9)}px ${SCR}`; ctx.textAlign = "left"; ctx.textBaseline = "top";
+      rich(k.label, -ctx.measureText(k.label).width / 2, k.r * 1.25, T(L, .7));
+      ctx.restore();
+    }
+    ctx.textAlign = "left";
+  }
+  function drawBlueprint(L) {
+    const g = L.g, gs = m * .05;
+    ctx.strokeStyle = T(L, .09); ctx.lineWidth = 1; ctx.beginPath();
+    for (let x = 0; x < W; x += gs) { ctx.moveTo(x, 0); ctx.lineTo(x, H * .81); }
+    for (let y = 0; y < H * .81; y += gs) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
+    ctx.stroke();
+    ctx.strokeStyle = T(L, .35); ctx.lineWidth = Math.max(1, m * .002);
+    for (const rm of L.rooms) ctx.strokeRect(rm.x, rm.y, rm.w, rm.h);
+    const x0 = g.C.x - g.w / 2 - b, x1 = g.C.x + g.w / 2 + b, y0 = g.C.y - g.h / 2 - b * 3, y1 = g.C.y + g.h / 2 + b * 3;
+    ctx.strokeStyle = T(L, .8); ctx.beginPath();
+    ctx.moveTo(x0, y0); ctx.lineTo(x1, y0); ctx.moveTo(x0, y0 - 6); ctx.lineTo(x0, y0 + 6); ctx.moveTo(x1, y0 - 6); ctx.lineTo(x1, y0 + 6);
+    ctx.moveTo(x0, y1); ctx.lineTo(x1, y1); ctx.moveTo(x0, y1 - 6); ctx.lineTo(x0, y1 + 6); ctx.moveTo(x1, y1 - 6); ctx.lineTo(x1, y1 + 6);
+    ctx.stroke();
+    ctx.font = `italic 500 ${F.cart}px ${SER}`; ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+    ctx.fillStyle = T(L, .9); ctx.fillText(L.dims[0] + " m", (x0 + x1) / 2, y0 - 4);
+    ctx.textBaseline = "top"; ctx.fillText(L.dims[1] + " m ?", (x0 + x1) / 2, y1 + 4);
+    ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+    ctx.save(); ctx.translate(W * .06, H * .74); ctx.rotate(-.04); ctx.font = `${F.right}px ${SCR}`; rich(L.planNote, 0, 0, T(L, .75)); ctx.restore();
+    ctx.save(); ctx.translate(W * .9, H * .12); ctx.strokeStyle = T(L, .6);
+    ctx.beginPath(); ctx.arc(0, 0, m * .03, 0, TAU); ctx.moveTo(0, -m * .045); ctx.lineTo(0, m * .045); ctx.moveTo(-m * .045, 0); ctx.lineTo(m * .045, 0); ctx.stroke();
+    ctx.fillStyle = T(L, .8); ctx.font = `${F.cart}px ${SER}`; ctx.textAlign = "center"; ctx.fillText("N ?", 0, -m * .055); ctx.restore();
+    ctx.textAlign = "left";
+  }
+  function drawBench(L) {
+    const y = H * .86, w = m * .36, x = W / 2 - w / 2 + m * .12;
+    ctx.fillStyle = "#2b2622"; ctx.fillRect(x, y, w, m * .025);
+    ctx.fillRect(x + w * .06, y, m * .012, m * .08); ctx.fillRect(x + w * .94 - m * .012, y, m * .012, m * .08);
+  }
+  function drawSpot(L) {
+    const g = L.g;
+    ctx.save(); ctx.globalCompositeOperation = "lighter";
+    const gr = ctx.createLinearGradient(0, 0, 0, H);
+    gr.addColorStop(0, "rgba(255,236,200,.16)"); gr.addColorStop(1, "rgba(255,236,200,0)");
+    ctx.fillStyle = gr; ctx.beginPath();
+    ctx.moveTo(W / 2 - m * .03, 0); ctx.lineTo(W / 2 + m * .03, 0);
+    ctx.lineTo(g.C.x + g.w * .75, H); ctx.lineTo(g.C.x - g.w * .75, H); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+  function drawWater(L, pts) {
+    const g = L.g, y0 = H * .81;
+    ctx.save();
+    ctx.beginPath(); ctx.rect(0, y0, W, H - y0); ctx.clip();
+    const gr = ctx.createLinearGradient(0, y0, 0, H);
+    gr.addColorStop(0, "rgba(10,20,40,.92)"); gr.addColorStop(1, "rgba(2,5,12,.98)");
+    ctx.fillStyle = gr; ctx.fillRect(0, y0, W, H - y0);
+    ctx.save(); ctx.translate(0, 2 * y0); ctx.scale(1, -1); ctx.translate(g.C.x, g.C.y); ctx.rotate(g.th);
+    trace(pts); ctx.strokeStyle = "rgba(200,215,240,.22)"; ctx.lineWidth = b * 1.6; ctx.stroke();
+    ctx.restore();
+    ctx.strokeStyle = "rgba(200,220,255,.18)"; ctx.lineWidth = Math.max(1, m * .0015); ctx.beginPath();
+    for (let k = 0; k < 14; k++) {
+      const yy = y0 + (H - y0) * (k + .5) / 14, off = Math.sin(NOW / 900 + k * 1.7) * W * .05;
+      ctx.moveTo(W * .2 + off + (k * 37 % 50) * W * .01, yy); ctx.lineTo(W * .45 + off + (k * 23 % 30) * W * .01, yy);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+  function drawDecorBack(L, detail) {
+    for (const d of L.decor) {
+      if (d === "ring") drawRing(L, detail);
+      else if (d === "corridor") drawCorridor(L);
+      else if (d === "board") drawBoard(L);
+      else if (d === "wallpaper") drawWallpaper(L, detail);
+      else if (d === "writing" && detail > 90) { const w = moving && layer("w" + L.idx, () => drawWriting(L)); w ? ctx.drawImage(w, 0, 0, W, H) : drawWriting(L); }
+      else if (d === "portraits") drawPortraits(L);
+      else if (d === "clocks") drawClocks(L);
+      else if (d === "blueprint") drawBlueprint(L);
+      else if (d === "watcher") tallAt(W * (L.idx % 2 ? .12 : .88), 0);
+    }
+  }
+  // ================= griffonnages et chaos =================
+  function scrawlsCore(i, L) {
+    const pencil = L.scrawls === "pencil", A = a => T(L, pencil ? a * .6 : a);
+    ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    const fl = `${F.left}px ${SCR}`;
+    ctx.font = fl;
+    let a = L.leftA, subbed = sub && sub.i === i;
+    if (subbed) {
+      const key = sub.text + F.left;
+      if (!subCache.has(key)) subCache.set(key, fitRepeat(sub.text, fl, H * .58));
+      a = subCache.get(key);
+    }
+    const x0 = W * .04 + F.left * .95;
+    ctx.save(); ctx.translate(x0, H * .78); ctx.rotate(-Math.PI / 2);
+    if (L.mirror) ctx.scale(1, -1);
+    rich(a, 0, 0, subbed ? `rgba(${BLOOD},.95)` : A(.62));
+    if (W >= 600 && !pencil) rich(L.leftB, 0, F.left * 1.9 * (L.mirror ? -1 : 1), A(.33));
+    ctx.restore();
+    const colW = Math.min(W * .22, 288), xr = W * .96 - colW, lh = F.right * 1.5;
+    const rots = [-5, 4, -8], margs = [0, .1, .03];
+    ctx.font = `${F.right}px ${SCR}`; ctx.textBaseline = "alphabetic";
+    let y = H * .09 + F.right;
+    L.right.forEach((p, k) => {
+      ctx.save(); ctx.translate(xr + margs[k] * colW, y); ctx.rotate(rots[k] * Math.PI / 180);
+      if (L.flip === k) { ctx.translate(colW * .8, -F.right * .4); ctx.scale(-1, -1); }
+      const col = p.red ? `rgba(${BLOOD},.9)` : A(.72);
+      p.lines.forEach((ln, q) => {
+        const wd = rich(ln, 0, q * lh, col);
+        if (L.strike === k) { ctx.fillStyle = col; ctx.fillRect(-2, q * lh - F.right * .38, wd + 4, Math.max(1, F.right * .08)); }
+      });
+      if (k === 0 && L.notes.length) { ctx.fillStyle = col; ctx.fillText(sup(L.mark + 1), ctx.measureText(p.lines[0]).width + 2, -F.right * .3); }
+      ctx.restore();
+      y += p.lines.length * lh + F.right * 1.2;
+    });
+    if (L.tally && !pencil) {
+      const r = rng(L.seed), th = F.right * 1.15, gap = F.right * .3;
+      let tx = xr, ty = y, rows = 0;
+      ctx.strokeStyle = A(.7); ctx.lineWidth = Math.max(F.right * .09, 1); ctx.lineCap = "round";
+      ctx.beginPath();
+      for (let n = 0; n < L.tally && rows < L.tallyRows; n++) {
+        const k = n % 5;
+        if (k < 4) {
+          const x = tx + k * gap;
+          ctx.moveTo(x + (r() - .5) * gap * .4, ty + (r() - .5) * th * .15);
+          ctx.lineTo(x + (r() - .5) * gap * (.4 + L.c * 2), ty + th + (r() - .5) * th * .15);
+        } else {
+          ctx.moveTo(tx - gap * .4, ty + th * .75); ctx.lineTo(tx + gap * 3.4, ty + th * .2);
+          tx += gap * 5.2;
+          if (tx + gap * 4 > xr + colW) { tx = xr; ty += th * 1.5; rows++; }
+        }
+      }
+      ctx.stroke();
+    }
+    if (L.top === null) {
+      ctx.font = `italic 500 ${F.title}px ${SER}`;
+      ctx.fillStyle = "#6a4a1c"; ctx.fillText("Mise en abyme", W * .1, H * .06 + F.title * .9 + 1.5);
+      ctx.fillStyle = "#f3dca0"; ctx.fillText("Mise en abyme", W * .1, H * .06 + F.title * .9);
+      if (visitedDeep) {
+        ctx.save(); ctx.translate(W * .1 + F.title * .2, H * .06 + F.title * 1.55); ctx.rotate(-2 * Math.PI / 180);
+        ctx.font = `${F.top}px ${SCR}`; rich("tu es déjà venu. la maison s'en souvient.", 0, 0, A(.6));
+        ctx.restore();
+      }
+    } else {
+      ctx.save(); ctx.translate(W * .1, H * .07 + F.top); ctx.rotate(-3 * Math.PI / 180);
+      ctx.font = `${F.top}px ${SCR}`; rich(L.top, 0, 0, A(.55));
+      ctx.restore();
+    }
+  }
+  function chaosCore(L) {
+    ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+    if (L.scatter) for (const it of L.scatter) {
+      ctx.save(); ctx.translate(it.x, it.y); ctx.rotate(it.rot);
+      ctx.font = it.serif ? `italic 500 ${it.size * 1.3}px ${SER}` : `${it.size}px ${SCR}`;
+      rich(it.t, 0, 0, T(L, .5));
+      ctx.restore();
+    }
+    if (L.fall) {
+      ctx.font = `${F.right * 1.1}px ${SCR}`;
+      let yy = L.fall.y, gapy = F.right * 1.3;
+      for (const ch of L.fall.t) { rich(ch, L.fall.x, yy, T(L, .55)); yy += gapy; gapy *= 1.35; }
+    }
+    if (L.notes.length) {
+      const lhN = F.note * 1.25;
+      let nx = W * .05, ny = H * .845;
+      ctx.fillStyle = T(L, .35); ctx.fillRect(nx, ny - F.note * 1.2, W * .1, 1);
+      ctx.font = `italic 400 ${F.note}px ${SER}`;
+      for (const note of L.notes) {
+        ctx.save(); ctx.translate(nx, ny); ctx.rotate(note.rot);
+        if (note.mirror) { ctx.scale(-1, 1); ctx.translate(-W * .36, 0); }
+        note.lines.forEach((ln, q) => rich(ln, 0, q * lhN, T(L, .66)));
+        ctx.restore();
+        if (Math.abs(note.rot) > 1) nx += W * .09; else ny += note.lines.length * lhN + F.note * .5;
+      }
+    }
+  }
+  function drawText(i, L, sc) {
+    ctx.save();
+    const j = J / sc;
+    if (j > 0) ctx.translate((Math.random() - .5) * 2 * j, (Math.random() - .5) * 2 * j);
+    const vec = () => { if (L.scrawls) scrawlsCore(i, L); chaosCore(L); };
+    const tx = moving && !(sub && sub.i === i) && layer(`t${L.idx}:${visitedDeep}`, vec);
+    const pass = tx ? () => ctx.drawImage(tx, 0, 0, W, H) : vec;
+    if (L.ghost) { ctx.save(); ctx.globalAlpha = .28; ctx.translate(m * .012 * L.c, -m * .008 * L.c); pass(); ctx.restore(); }
+    pass();
+    ctx.restore();
+  }
+  function drawLonely(L) {
+    ctx.font = `italic 500 ${F.cart}px ${SER}`; ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+    rich(L.lonely.t, W * L.lonely.x, H * L.lonely.y, T(L, .7));
+  }
+
+  // ================= cartel =================
+  function drawCartel(L, detail) {
+    const c = L.cart, white = L.cartel === "white";
+    const x = L.cartLeft ? W / 2 - m * .15 - c.cw : W / 2 + m * .15, y = Math.min(H * .78, H - F.hud - c.h - 8);
+    ctx.save(); ctx.translate(x, y); ctx.rotate(L.cartRot);
+    if (white) {
+      ctx.fillStyle = "#faf8f3"; ctx.fillRect(0, 0, c.cw, c.h);
+      ctx.strokeStyle = "rgba(0,0,0,.12)"; ctx.lineWidth = 1; ctx.strokeRect(0, 0, c.cw, c.h);
+    } else {
+      ctx.fillStyle = "rgba(0,0,0,.22)"; ctx.fillRect(-c.pad * .15, c.pad * .35, c.cw + c.pad * .3, c.h + c.pad * .1);
+      ctx.fillStyle = "rgba(0,0,0,.3)"; ctx.fillRect(0, c.pad * .2, c.cw, c.h);
+      const gr = ctx.createLinearGradient(0, 0, 0, c.h); gr.addColorStop(0, "#eee6d4"); gr.addColorStop(1, "#ddd2ba");
+      ctx.fillStyle = gr; ctx.fillRect(0, 0, c.cw, c.h);
+    }
+    if (detail > 70) {
+      ctx.textAlign = "left"; ctx.textBaseline = "alphabetic";
+      const ink = white ? "#1c1c1c" : "#2a1c13", inner = c.cw - c.pad * 2, rows = [];
+      let ty = c.pad + F.cart * 1.1;
+      ctx.font = c.tFont; c.tl.forEach(l => { rich(l, c.pad, ty, ink); rows.push(ty); ty += F.cart * 1.22 * 1.12; });
+      ty += F.cart * .2;
+      ctx.font = c.mFont; c.ml.forEach(l => { rich(l, c.pad, ty, ink); rows.push(ty); ty += F.cart * 1.3; });
+      ty += F.cart * .4;
+      ctx.globalAlpha = .62; ctx.font = c.nFont; c.nl.forEach(l => { rich(l, c.pad, ty, ink); rows.push(ty); ty += F.cart * 1.1; });
+      ctx.globalAlpha = 1;
+      ctx.fillStyle = "#120a06";
+      for (const rd of c.red) if (rows[rd.k] !== undefined) ctx.fillRect(c.pad + rd.s * inner, rows[rd.k] - F.cart * .85, rd.w * inner, F.cart * 1.05);
+    }
+    ctx.restore();
+  }
+
+  // ================= habitants =================
+  function drawEyes(amt, big, cx, cy, sp, rx) {
+    const p = localPointer();
+    const glow = ctx.createRadialGradient(cx, cy, 0, cx, cy, sp * 2.4);
+    glow.addColorStop(0, `rgba(255,150,70,${.55 * amt})`); glow.addColorStop(1, "rgba(255,120,60,0)");
+    ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(cx, cy, sp * 2.4, 0, TAU); ctx.fill();
+    for (const ex of [cx - sp, cx + sp]) {
+      const open = Math.min(1, amt * 1.3);
+      ctx.fillStyle = `rgba(255,243,209,${amt})`;
+      ctx.beginPath(); ctx.ellipse(ex, cy, rx, rx * .64 * open + .01, 0, 0, TAU); ctx.fill();
+      let dx = p.x - ex, dy = p.y - cy; const d = Math.hypot(dx, dy) || 1;
+      ctx.fillStyle = `rgba(30,0,0,${amt})`;
+      ctx.beginPath(); ctx.arc(ex + dx / d * rx * .43, cy + dy / d * rx * .2, rx * (big ? .34 : .39), 0, TAU); ctx.fill();
+    }
+  }
+  function viewerAt(i, cx, bottom, scale, eyes = true) {
+    const vs = m * .25 / 200 * scale;
+    ctx.save(); ctx.translate(cx - 100 * vs, bottom - 230 * vs); ctx.scale(vs, vs);
+    ctx.fillStyle = "#110304"; ctx.fill(viewerPath);
+    ctx.strokeStyle = "rgba(230,195,127,.22)"; ctx.lineWidth = 2; ctx.stroke(viewerPath);
+    if (eyes && stareA[i] > .01) drawEyes(stareA[i], i === 0, 100, 60, 14, 4.4);
+    ctx.restore();
+  }
+  function drawWho(i, L) {
+    const bottom = H + m * .03;
+    switch (L.who) {
+      case "viewer": viewerAt(i, W / 2, bottom, 1); break;
+      case "two": viewerAt(i, W / 2 + m * .15, H * .93, .55); viewerAt(i, W / 2 - m * .06, bottom, 1); break;
+      case "half":
+        ctx.save(); ctx.beginPath(); ctx.rect(0, 0, W, H * .86); ctx.clip();
+        viewerAt(i, W / 2, H * 1.02, 1); ctx.restore(); break;
+      case "chair": {
+        const cs = m * .2 / 200;
+        ctx.save(); ctx.translate(W / 2 - 100 * cs, bottom - 220 * cs); ctx.scale(cs, cs);
+        ctx.fillStyle = "#120806"; ctx.fill(chairPath); ctx.restore(); break;
+      }
+      case "tall": tallAt(L.idx % 2 ? W * .83 : W * .17, stareA[i]); break;
+    }
+  }
+  function tallAt(x, eyes) {
+    const hgt = H * .6, y = H * .84 - hgt, s = hgt / 100;
+    ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+    ctx.fillStyle = "rgba(8,4,4,.92)";
+    ctx.save(); ctx.translate(0, 7); ctx.rotate(.22); ctx.beginPath(); ctx.ellipse(0, 0, 3.6, 5.4, 0, 0, TAU); ctx.fill(); ctx.restore();
+    ctx.beginPath();
+    ctx.moveTo(-1.2, 12); ctx.lineTo(-6.5, 16); ctx.lineTo(-9, 64); ctx.lineTo(-7.8, 64.5); ctx.lineTo(-5.2, 30);
+    ctx.lineTo(-4.4, 55); ctx.lineTo(-4, 100); ctx.lineTo(-1.2, 100); ctx.lineTo(0, 58); ctx.lineTo(1.2, 100); ctx.lineTo(4, 100);
+    ctx.lineTo(4.4, 55); ctx.lineTo(5.2, 30); ctx.lineTo(7.8, 64.5); ctx.lineTo(9, 64); ctx.lineTo(6.5, 16); ctx.lineTo(1.2, 12); ctx.closePath();
+    ctx.fill();
+    if (eyes > .01) { ctx.save(); ctx.translate(0, 7); ctx.rotate(.22); drawEyes(eyes, false, 0, -.5, 1.5, .8); ctx.restore(); }
+    ctx.restore();
+  }
+  // salle noire : tout est éteint sauf le tableau et le faisceau de la lampe (souris ou doigt).
+  // Le guetteur n'existe que dans le faisceau ; hors du faisceau, on ne voit que ses yeux.
+  function drawDark(L, pts) {
+    const g = L.g, c = Math.cos(g.th), s = Math.sin(g.th), p = localPointer(), r = m * .34;
+    const lamp = ctx.createRadialGradient(p.x, p.y, r * .1, p.x, p.y, r);
+    lamp.addColorStop(0, "rgba(3,2,2,0)"); lamp.addColorStop(.6, "rgba(3,2,2,.78)"); lamp.addColorStop(1, "rgba(3,2,2,.97)");
+    ctx.beginPath(); ctx.rect(0, 0, W, H);
+    pts.forEach(([x, y], k) => { const X = g.C.x + x * c - y * s, Y = g.C.y + x * s + y * c; k ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); });
+    ctx.closePath(); ctx.fillStyle = lamp; ctx.fill("evenodd");
+    if (L.empty) return;
+    const e = H * .006, hx = W * (L.idx % 2 ? .12 : .88), hy = H * .24 + 7 * e; // centre de la tête (cf. tallAt)
+    const dark = smooth((Math.hypot(p.x - hx, p.y - hy) / r - .35) / .5);
+    if (dark < .02) return;
+    ctx.fillStyle = `rgba(255,170,90,${.85 * dark})`;
+    for (const [ex, ey] of [[-1.36, -.82], [1.57, -.16]]) { ctx.beginPath(); ctx.arc(hx + ex * e, hy + ey * e, e * .38, 0, TAU); ctx.fill(); }
+  }
+
+  // ================= une salle =================
+  function drawLevel(i, depth, sc, fade, now, e) {
+    const idx = depth + i, L = level(idx), g = L.g, detail = sc * m;
+    ctx.drawImage(wallSprite(L.pal), 0, 0, W, H);
+    if (L.dark > .01) { ctx.fillStyle = `rgba(6,6,14,${L.dark})`; ctx.fillRect(0, 0, W, H); }
+    if (detail > 40 && !L.empty) drawDecorBack(L, detail);
+    if (detail > 80) { if (L.empty) drawLonely(L); else drawText(i, L, sc); }
+    if (L.decor.includes("bench") && detail > 40) drawBench(L);
+    if (L.frame !== "none" && L.frame !== "line") {
+      const ss = shadowSprite(L.shape), sw = g.w + 2 * b + 2 * ss.pad, sh = g.h + 2 * b + 2 * ss.pad;
+      ctx.save(); ctx.translate(g.C.x, g.C.y + b * 1.4); ctx.rotate(g.th);
+      ctx.drawImage(ss.c, -sw / 2, -sh / 2, sw, sh);
+      ctx.restore();
+    }
+    ctx.save(); ctx.translate(g.C.x, g.C.y); ctx.rotate(g.th);
+    const pts = framePts(L, e);
+    strokeFrame(L, pts);
+    ctx.save(); trace(pts); ctx.clip();
+    if (sc * g.k * W > 3 && i < 18) {
+      ctx.save(); ctx.scale(g.k, g.k); ctx.translate(-S.x, -S.y);
+      drawLevel(i + 1, depth, sc * g.k, 1, now, 0);
+      ctx.restore();
+    } else { ctx.fillStyle = "#050203"; ctx.fillRect(-g.w / 2, -g.h / 2, g.w, g.h); }
+    if (fade > .01) {
+      trace(pts); ctx.globalAlpha = fade;
+      ctx.strokeStyle = "rgba(0,0,0,.45)"; ctx.lineWidth = b * 1.5; ctx.stroke();
+      ctx.strokeStyle = "rgba(0,0,0,.5)"; ctx.lineWidth = b * .55; ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    ctx.restore();
+    ctx.restore();
+    if (L.type === "noire") drawDark(L, pts);
+    if (detail > 40 && !L.empty) {
+      if (L.decor.includes("water")) drawWater(L, pts);
+      if (L.decor.includes("spot")) drawSpot(L);
+    }
+    if (L.cartel && detail > 25) drawCartel(L, detail);
+    drawWho(i, L);
+  }
+
+  function drawAbyssEye(now, E) {
+    const a = Math.min(.95, v * 1.3 + dread * .95);
+    if (a < .01) return;
+    let open = 1;
+    const bt = now - blinkAt;
+    if (bt > 0 && bt < 180) open = Math.abs(bt - 90) / 90;
+    else if (bt >= 180) blinkAt = now + 2200 + Math.random() * 4500;
+    open *= .35 + .65 * Math.min(1, a * 1.6);
+    const s = m * (.028 + dread * .012);
+    ctx.save(); ctx.translate(E.x, E.y); ctx.globalAlpha = a;
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, s * 3.2);
+    g.addColorStop(0, "rgba(255,90,60,.35)"); g.addColorStop(1, "rgba(255,60,40,0)");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, s * 3.2, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-s * 1.6, 0);
+    ctx.quadraticCurveTo(0, -s * 1.15 * open, s * 1.6, 0); ctx.quadraticCurveTo(0, s * 1.15 * open, -s * 1.6, 0); ctx.closePath();
+    ctx.fillStyle = "#e9d9b8"; ctx.fill();
+    ctx.save(); ctx.clip();
+    const px = (pointer.x - E.x) / W * s * .9, py = (pointer.y - E.y) / H * s * .6;
+    ctx.fillStyle = "#5c0d12"; ctx.beginPath(); ctx.arc(px, py, s * .62, 0, TAU); ctx.fill();
+    ctx.fillStyle = "#050000"; ctx.beginPath(); ctx.arc(px, py, s * (.2 + v * .22 + dread * .12), 0, TAU); ctx.fill();
+    ctx.fillStyle = "rgba(255,255,255,.7)"; ctx.beginPath(); ctx.arc(px - s * .18, py - s * .2, s * .09, 0, TAU); ctx.fill();
+    ctx.restore();
+    ctx.strokeStyle = "rgba(20,0,0,.8)"; ctx.lineWidth = s * .08; ctx.stroke();
+    ctx.restore();
+  }
+  function drawScreenFX(now) {
+    ctx.drawImage(SPR.vig, 0, 0, W, H);
+    const tight = Math.min(1, v * .8 + dread * .7);
+    if (tight > .01) { ctx.globalAlpha = tight; ctx.drawImage(SPR.vigTight, 0, 0, W, H); ctx.globalAlpha = 1; }
+    // un seul creux par épisode (flickA tiré au déclenchement) : un stroboscope dépasserait 3 flashs/s (WCAG 2.3.1)
+    if (now < flickUntil) {
+      ctx.fillStyle = `rgba(5,0,1,${flickA})`; ctx.fillRect(0, 0, W, H);
+    }
+  }
+
+  // ================= son (généré, rien à télécharger) =================
+  let AC = null, master, droneF, soundOn = false, nextBeat = 0;
+  function initAudio() {
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    master = AC.createGain(); master.gain.value = 0; master.connect(AC.destination);
+    droneF = AC.createBiquadFilter(); droneF.type = "lowpass"; droneF.frequency.value = 240; droneF.Q.value = 5; droneF.connect(master);
+    [[48.9, "sine", .32], [49.55, "sine", .32], [73.3, "triangle", .07], [98.4, "sine", .05], [146.2, "sine", .02]].forEach(([f, t, gv]) => {
+      const o = AC.createOscillator(); o.type = t; o.frequency.value = f;
+      const gn = AC.createGain(); gn.gain.value = gv; o.connect(gn).connect(droneF); o.start();
+    });
+    const len = AC.sampleRate * 4, buf = AC.createBuffer(1, len, AC.sampleRate), d = buf.getChannelData(0);
+    let l = 0; for (let n = 0; n < len; n++) { l = (l + .02 * (Math.random() * 2 - 1)) / 1.02; d[n] = l * 3.5; }
+    const ns = AC.createBufferSource(); ns.buffer = buf; ns.loop = true;
+    const bp = AC.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 520; bp.Q.value = .7;
+    const ng = AC.createGain(); ng.gain.value = .14; ns.connect(bp).connect(ng).connect(master); ns.start();
+    const lfo = AC.createOscillator(); lfo.frequency.value = .06; const lg = AC.createGain(); lg.gain.value = 70;
+    lfo.connect(lg).connect(droneF.frequency); lfo.start();
+    nextBeat = AC.currentTime + .3;
+  }
+  function thump(t, s) {
+    const o = AC.createOscillator(), g = AC.createGain();
+    o.type = "sine"; o.frequency.setValueAtTime(64, t); o.frequency.exponentialRampToValueAtTime(36, t + .17);
+    g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(s, t + .012); g.gain.exponentialRampToValueAtTime(.0001, t + .24);
+    o.connect(g).connect(master); o.start(t); o.stop(t + .27);
+  }
+  function sting() {
+    if (!soundOn) return;
+    const t = AC.currentTime;
+    [1318.5, 1396.9, 1975.5].forEach((f, k) => {
+      const o = AC.createOscillator(), g = AC.createGain();
+      o.type = "sine"; o.frequency.value = f; o.detune.setValueAtTime(0, t); o.detune.linearRampToValueAtTime(-60, t + 2.2);
+      g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.035 - k * .008, t + .6); g.gain.exponentialRampToValueAtTime(.0001, t + 2.4);
+      o.connect(g).connect(master); o.start(t); o.stop(t + 2.5);
+    });
+  }
+  function audioTick() {
+    if (!soundOn || !AC) return;
+    const bpm = 54 + v * 75 + dread * 45;
+    while (nextBeat < AC.currentTime + .12) {
+      thump(nextBeat, .75 + dread * .2); thump(nextBeat + .27, .45);
+      nextBeat += 60 / bpm;
+    }
+    droneF.frequency.setTargetAtTime(240 + v * 520 + dread * 260, AC.currentTime, .15);
+  }
+  const soundBtn = document.getElementById("sound");
+  soundBtn.addEventListener("click", () => {
+    if (!AC) initAudio();
+    soundOn = !soundOn;
+    if (soundOn) { AC.resume(); nextBeat = AC.currentTime + .2; }
+    master.gain.setTargetAtTime(soundOn ? .5 : 0, AC.currentTime, .4);
+    soundBtn.textContent = soundOn ? "Couper le son" : "Activer le son";
+  });
+
+
+  // ================= paranoïa =================
+  const whisperEl = document.getElementById("whisper");
+  function whisper(text, red) {
+    whisperEl.innerHTML = richHTML(text);
+    const side = Math.random() < .5;
+    whisperEl.style.left = side ? "8vw" : "auto"; whisperEl.style.right = side ? "auto" : "8vw";
+    whisperEl.style.top = (16 + Math.random() * 40) + "vh";
+    whisperEl.style.transform = `rotate(${(Math.random() * 8 - 4).toFixed(1)}deg)`;
+    whisperEl.classList.toggle("red", !!red);
+    whisperEl.classList.add("on");
+  }
+  function calm(now) {
+    lastInput = now; cascade = null; nextCascadeOK = 0;
+    stareT.fill(0); stareA.fill(0);
+    whisperEl.classList.remove("on");
+  }
+  function idleTick(now, dt) {
+    const idle = now - lastInput;
+    if (!cascade && idle > (touched ? 5000 : 8000) && now > nextCascadeOK && Math.abs(target - current) < .01) {
+      const pool = current >= 15 ? deepCascades : cascades;
+      cascade = { t0: now, lines: pool[Math.floor(Math.random() * pool.length)], step: 0 };
+    }
+    if (cascade) {
+      const el = (now - cascade.t0) / 1000, N = 4;
+      for (let i = 0; i <= N; i++) stareT[i] = el > .9 + (N - i) * .7 ? 1 : 0;
+      dread = Math.min(1, el / 3.8);
+      if (cascade.step === 0 && el > .2) { whisper(cascade.lines[0]); cascade.step = 1; }
+      if (cascade.step === 1 && el > .9 + N * .7) {
+        whisper(cascade.lines[1], true); cascade.step = 2;
+        if (!reduce) { flickUntil = now + 650; flickA = .7; }
+        sting();
+      }
+      if (el > 7.5) { cascade = null; stareT.fill(0); whisperEl.classList.remove("on"); nextCascadeOK = now + 9000; }
+    } else dread = Math.max(0, dread - dt * .6);
+    for (let i = 0; i < stareA.length; i++) stareA[i] += (stareT[i] - stareA[i]) * (1 - Math.exp(-dt * (stareT[i] ? 5 : 3)));
+
+    if (!reduce) {
+      const cc = chaos(current);
+      if (now > nextSub) {
+        const pool = cc > .2 ? subliminal.concat(["maison", "la maison te voit", "ce n'est pas ta maison"]) : subliminal;
+        sub = { i: Math.floor(Math.random() * 3), text: pool[Math.floor(Math.random() * pool.length)], until: now + 110 };
+        nextSub = now + (4500 + Math.random() * 7000) * (1 - cc * .6);
+      }
+      if (sub && now > sub.until) sub = null;
+      if (now > nextFlick) { flickUntil = now + 260 + Math.random() * 260; flickA = Math.random() < .5 ? .7 : .15; nextFlick = now + (8000 + Math.random() * 12000) * (1 - cc * .5); }
+      if (cc > .5 && now > nextMirror) {
+        if (nextMirror) mirrorUntil = now + 140;
+        nextMirror = now + 12000 + Math.random() * 14000;
+      }
+    }
+  }
+
+  // ================= poussière =================
+  // des grains en suspension dans le tableau : ils suivent exactement le zoom (z *= k^pas) et la rotation,
+  // donc en descendant on les traverse. Au repos, ils dérivent lentement vers toi.
+  const motes = Array.from({ length: 70 }, () => spawnMote({}, .1 + Math.random() * .9));
+  function spawnMote(p, z) { p.x = (Math.random() - .5) * 3; p.y = (Math.random() - .5) * 3; p.z = z; p.ph = Math.random() * TAU; return p; }
+  let moteSpr = null;
+  function drawMotes(E, step, g, dt) {
+    if (reduce) return;
+    if (!moteSpr) {
+      moteSpr = document.createElement("canvas"); moteSpr.width = moteSpr.height = 64;
+      const x = moteSpr.getContext("2d"), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+      gr.addColorStop(0, "rgba(255,236,200,1)"); gr.addColorStop(.3, "rgba(255,214,160,.4)"); gr.addColorStop(1, "rgba(255,200,150,0)");
+      x.fillStyle = gr; x.fillRect(0, 0, 64, 64);
+    }
+    const zf = Math.pow(g.k, step) * Math.exp(-dt * .035), a = -g.th * step, ca = Math.cos(a), sa = Math.sin(a), spread = m * .17;
+    ctx.save(); ctx.globalCompositeOperation = "lighter";
+    for (const p of motes) {
+      [p.x, p.y] = [p.x * ca - p.y * sa, p.x * sa + p.y * ca];
+      p.z *= zf;
+      if (p.z < .06) spawnMote(p, 1); else if (p.z > 1.05) spawnMote(p, .07);
+      const X = E.x + (p.x + Math.sin(NOW * .0003 + p.ph) * .04) * spread / p.z, Y = E.y + p.y * spread / p.z, r = m * .0024 / p.z;
+      if (X < -r || X > W + r || Y < -r || Y > H + r) continue;
+      ctx.globalAlpha = .38 * smooth((1 - p.z) / .2) * smooth((p.z - .07) / .15) * (.65 + .35 * Math.sin(NOW * .002 + p.ph * 3));
+      ctx.drawImage(moteSpr, X - r, Y - r, 2 * r, 2 * r);
+    }
+    ctx.restore();
+  }
+
+  // ================= post-traitement (WebGL) =================
+  // le rendu 2D devient une texture : étirement des bords et flou radial vers le point de fuite quand on descend vite,
+  // aberration chromatique, respiration lente de l'image, étalonnage qui dérive avec la profondeur.
+  // Sans WebGL (ou si le contexte est perdu), le canvas 2D s'affiche tel quel.
+  const post = (() => {
+    const c = document.createElement("canvas");
+    const gl = c.getContext("webgl", { alpha: false, antialias: false, depth: false, stencil: false });
+    if (!gl) return null;
+    const prog = gl.createProgram();
+    [[gl.VERTEX_SHADER, `attribute vec2 a; varying vec2 u;
+      void main() { u = vec2(a.x * .5 + .5, .5 - a.y * .5); gl_Position = vec4(a, 0., 1.); }`],
+     [gl.FRAGMENT_SHADER, `precision mediump float;
+      uniform sampler2D T; uniform vec2 C; uniform float V, K, D, R, S, M, Hu; varying vec2 u;
+      void main() {
+        vec2 p = u + M * (.0012 + K * .004 + D * .004) * vec2(sin(u.y * 7. + S * .6), cos(u.x * 6. + S * .45));
+        vec2 d = p - C;
+        vec2 da = d * vec2(R, 1.);
+        d *= 1. - M * (.06 * V + .012 * K) * dot(da, da);
+        float ca = .0015 + .007 * V + .002 * K + .004 * D;
+        float n = 1. + floor(M * V * 11.);
+        vec3 col = vec3(0.);
+        for (int i = 0; i < 12; i++) {
+          if (float(i) >= n) break;
+          vec2 q = d * (1. - .08 * V * float(i) / 11.);
+          col += vec3(texture2D(T, C + q * (1. + ca)).r, texture2D(T, C + q).g, texture2D(T, C + q * (1. - ca)).b);
+        }
+        col /= n;
+        float l = dot(col, vec3(.299, .587, .114));
+        col = mix(col, vec3(l), K * .3);
+        col += cos(Hu + vec3(0., 2.1, 4.2)) * .025 * K * (1. - l);
+        gl_FragColor = vec4(col, 1.);
+      }`]].forEach(([type, code]) => { const s = gl.createShader(type); gl.shaderSource(s, code); gl.compileShader(s); gl.attachShader(prog, s); });
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return null;
+    gl.useProgram(prog);
+    gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(prog, "a");
+    gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    gl.bindTexture(gl.TEXTURE_2D, gl.createTexture());
+    for (const k of [gl.TEXTURE_WRAP_S, gl.TEXTURE_WRAP_T]) gl.texParameteri(gl.TEXTURE_2D, k, gl.CLAMP_TO_EDGE);
+    for (const k of [gl.TEXTURE_MIN_FILTER, gl.TEXTURE_MAG_FILTER]) gl.texParameteri(gl.TEXTURE_2D, k, gl.LINEAR);
+    const U = {};
+    for (const n of ["C", "V", "K", "D", "R", "S", "M", "Hu"]) U[n] = gl.getUniformLocation(prog, n);
+    c.className = "post"; c.setAttribute("aria-hidden", "true");
+    cv.after(c); cv.style.opacity = 0; // le canvas 2D reste dessous : il reçoit le toucher et porte l'aria-label
+    const P = {
+      live: true,
+      size() { c.width = cv.width; c.height = cv.height; gl.viewport(0, 0, c.width, c.height); },
+      draw(E, depth) {
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, cv);
+        gl.uniform2f(U.C, E.x / W, E.y / H); gl.uniform1f(U.R, W / H);
+        gl.uniform1f(U.V, v); gl.uniform1f(U.K, chaos(depth)); gl.uniform1f(U.D, dread);
+        gl.uniform1f(U.S, NOW / 1000); gl.uniform1f(U.M, reduce ? 0 : 1); gl.uniform1f(U.Hu, depth * .09);
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+      }
+    };
+    c.addEventListener("webglcontextlost", () => { P.live = false; c.remove(); cv.style.opacity = ""; });
+    return P;
+  })();
+
+  // ================= boucle =================
+  const depthEl = document.getElementById("depth"), upBtn = document.getElementById("up"), actionsEl = document.querySelector(".actions");
+  function hud(d) {
+    if (d === hudDepth) return;
+    hudDepth = d;
+    if (d >= 15 && !visitedDeep) { visitedDeep = true; try { localStorage.setItem("abyme.profond", "1"); } catch {} }
+    const cad = d === 1 ? "cadre" : "cadres";
+    depthEl.innerHTML =
+      (d === 0 ? (visitedDeep ? "à la surface. (la même ?)" : touched ? "à la surface" : "à la surface. Fais défiler pour entrer dans le tableau.")
+      : d < 12 ? `à <b>${d}</b> ${cad} de la surface`
+      : d < 20 ? `à <b>${d}</b> ${cad} de la surface${sup(d - 11)}`
+      : d < 30 ? `à <b>${d}</b> ${cad} de la <s>surface</s> <span class="blue">maison</span>`
+      : `il n'y a pas de surface. <b>(${d})</b>`) + `<span class="room">${richHTML(roomName(d))}</span>`
+      + (touched ? "" : `<span class="room">Contient des flashs et des sursauts.</span>`);
+    upBtn.textContent = d >= 25 ? "Remonter (si ça existe)" : "Remonter à la surface";
+    upBtn.classList.toggle("show", d >= 2);
+    F.hud = Math.max(F.hud, H - actionsEl.getBoundingClientRect().top); // max : le cartel ne saute pas quand le texte change
+  }
+
+  function tick(now) {
+    const dt = Math.min(.05, (now - last) / 1000) || .016; last = now; NOW = now;
+    if (fling) {
+      target = Math.max(0, target + fling * dt);
+      fling *= Math.exp(-dt * 2.6);
+      lastInput = now;
+      if (Math.abs(fling) < .02) fling = 0;
+    }
+    const diff = target - current;
+    let step = diff * (1 - Math.exp(-dt * (reduce ? 14 : 7)));
+    if (diff < -1) step = Math.max(step, -Math.max(3.5 * dt, Math.abs(diff) * dt * 2.2));
+    if (Math.abs(diff) < .0002) step = diff;
+    current += step;
+    vel += (Math.abs(step) / dt - vel) * (1 - Math.exp(-dt * 8));
+    v = Math.min(1, vel / 2.5);
+    moving = v > .05; layerBudget = 1;
+    J = reduce ? 0 : v * 3.4 + chaos(current) * .8;
+    if (!reduce) rot = -(now / 80000) * TAU;
+    idleTick(now, dt);
+    audioTick();
+
+    const depth = Math.floor(current), t = current - depth, g = geo(depth);
+    hud(Math.round(current));
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    // la caméra elle-même devient instable en profondeur
+    const cc = reduce ? 0 : chaos(current);
+    if (cc > 0) {
+      ctx.translate(W / 2, H / 2);
+      ctx.rotate(Math.sin(now * .00061) * .035 * cc + Math.sin(now * .0017) * .012 * cc);
+      ctx.translate(-W / 2, -H / 2);
+    }
+    if (now < mirrorUntil) { ctx.translate(W, 0); ctx.scale(-1, 1); }
+    const s = Math.pow(g.k, -t);
+    ctx.translate(g.P.x, g.P.y); ctx.rotate(-g.th * t); ctx.scale(s, s); ctx.translate(-g.P.x, -g.P.y);
+    drawLevel(0, depth, s, 1 - t, now, smooth((t - .3) / .7));
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const g2 = geo(depth + 1), e = t * t * (3 - 2 * t), E = { x: g.P.x + (g2.P.x - g.P.x) * e, y: g.P.y + (g2.P.y - g.P.y) * e };
+    drawMotes(E, step, g, dt);
+    drawAbyssEye(now, E);
+    drawScreenFX(now);
+    if (post && post.live) post.draw(E, current);
+    requestAnimationFrame(tick);
+  }
+
+  // ================= entrées =================
+  function nudge(amount) {
+    const now = performance.now();
+    target = Math.max(0, target + amount);
+    if (!touched && target > .05) { touched = true; hudDepth = -1; }
+    calm(now);
+  }
+  addEventListener("wheel", e => {
+    e.preventDefault();
+    const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? H : 1;
+    fling = 0; nudge(e.deltaY * unit * .0011);
+  }, { passive: false });
+
+  let ty = null, tt = 0, tv = 0;
+  cv.addEventListener("touchstart", e => { ty = e.touches[0].clientY; tt = performance.now(); tv = 0; fling = 0; }, { passive: true });
+  cv.addEventListener("touchmove", e => {
+    e.preventDefault();
+    const y = e.touches[0].clientY, now = performance.now();
+    if (ty !== null) {
+      const d = (ty - y) * .004;
+      nudge(d);
+      const dts = Math.max(.008, (now - tt) / 1000);
+      tv = tv * .6 + (d / dts) * .4;
+    }
+    ty = y; tt = now;
+    pointer = { x: e.touches[0].clientX, y };
+  }, { passive: false });
+  cv.addEventListener("touchend", () => {
+    ty = null;
+    if (performance.now() - tt < 90) fling = Math.max(-6, Math.min(6, tv));
+  });
+  addEventListener("pointermove", e => { pointer = { x: e.clientX, y: e.clientY }; });
+  addEventListener("keydown", e => {
+    const map = { ArrowDown: .25, ArrowUp: -.25, PageDown: 1, PageUp: -1, " ": 1 };
+    if (e.key in map && !(e.key === " " && document.activeElement instanceof HTMLButtonElement)) {
+      e.preventDefault(); nudge(e.shiftKey && e.key === " " ? -1 : map[e.key]);
+    }
+  });
+  upBtn.addEventListener("click", () => { fling = 0; target = 0; nudge(0); });
+  let rz; addEventListener("resize", () => { clearTimeout(rz); rz = setTimeout(resize, 80); });
+
+  // accès direct en profondeur pour tester : ?salle=20
+  const q = parseFloat(new URLSearchParams(location.search).get("salle"));
+  if (q > 0) { target = current = q; touched = true; }
+
+  resize();
+  if (document.fonts) {
+    Promise.all([
+      document.fonts.load(`20px "Rock Salt"`), document.fonts.load(`italic 400 20px "Cormorant Garamond"`),
+      document.fonts.load(`italic 500 20px "Cormorant Garamond"`), document.fonts.load(`italic 600 20px "Cormorant Garamond"`),
+      document.fonts.load(`500 20px "Cormorant Garamond"`)
+    ]).then(() => { cache.clear(); subCache.clear(); }).catch(() => {});
+  }
+  requestAnimationFrame(tick);
+})();
+</script>
+</body>
+</html>
